@@ -1,9 +1,13 @@
 #pragma once
 #include "Vec3D.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #define TILE 50
 #define OSTS 10
-#define SIZE 20
+#define VOXEL_SIZE 20
 
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
@@ -81,4 +85,4 @@ extern double rDisp;
 extern const float SPACING;
 
 // ボクセルの存在情報
-extern bool voxels[SIZE][SIZE][SIZE];
+extern bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
