@@ -60,63 +60,127 @@ void initGL()
         }
     }
     
-    //テクスチャ準備
-    cv::Mat textureImage; //テクスチャ画像格納用
-    //テクスチャ 0 作成
-    textureImage = cv::imread("AIT_Zoo.jpg", cv::IMREAD_UNCHANGED); //画像読み込み 
-    glBindTexture(GL_TEXTURE_2D, 0); //テクスチャ#0
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); //テクスチャ拡大時の補間方法 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //テクスチャ縮小時の補間方法 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureImage.cols, textureImage.rows, 0, GL_BGR,
-    GL_UNSIGNED_BYTE, textureImage.data); //画像をテクスチャに割り当  
-    
+    cv::Mat textureImage;
+    textureImage = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
+
+    if (textureImage.empty()) {
+        std::cout << "画像を読み込めませんでした: AIT_Zoo.jpg" << std::endl;
+    } else {
+        cv::cvtColor(textureImage, textureImage, cv::COLOR_BGR2RGB);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGB,
+            textureImage.cols,
+            textureImage.rows,
+            0,
+            GL_RGB,
+            GL_UNSIGNED_BYTE,
+            textureImage.data
+        );
+    }
 }
 
 //ディスプレイコールバック関数
 void display()
 {
-    glViewport(0, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
+    // glViewport(0, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
 
-    //投影変換
-    glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    glLoadIdentity();  //カレント行列初期化
-    gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ウィンドウクリア
-    //ビューイング変換準備
-    glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
-    glLoadIdentity();  //行列初期化
-    //視点極座標から直交座標へ変換
-    Vec_3D e;
-    e.x = eDist*cos(eDegX*M_PI/180.0)*sin(eDegY*M_PI/180.0);
-    e.y = eDist*sin(eDegX*M_PI/180.0);
-    e.z = eDist*cos(eDegX*M_PI/180.0)*cos(eDegY*M_PI/180.0);
-    //視点設定・ビューイング変換
-    gluLookAt(e.x-200, e.y, e.z, -50, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
-    dispobj();
-
-    glViewport(winW*rDisp*0.5, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
-
-    //投影変換
-    glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    glLoadIdentity();  //カレント行列初期化
-    gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
-
+    // //投影変換
+    // glMatrixMode(GL_PROJECTION);  //カレント行列の設定
+    // glLoadIdentity();  //カレント行列初期化
+    // gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ウィンドウクリア
-    //ビューイング変換準備
-    glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
-    glLoadIdentity();  //行列初期化
+    // //ビューイング変換準備
+    // glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
+    // glLoadIdentity();  //行列初期化
     // //視点極座標から直交座標へ変換
     // Vec_3D e;
     // e.x = eDist*cos(eDegX*M_PI/180.0)*sin(eDegY*M_PI/180.0);
     // e.y = eDist*sin(eDegX*M_PI/180.0);
     // e.z = eDist*cos(eDegX*M_PI/180.0)*cos(eDegY*M_PI/180.0);
-    //視点設定・ビューイング変換
-    gluLookAt(e.x+200, e.y, e.z, 50.0, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
+    // //視点設定・ビューイング変換
+    // gluLookAt(e.x-200, e.y, e.z, -50, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
+    // dispobj();
 
-    dispobj();
+    // glViewport(winW*rDisp*0.5, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
+
+    // //投影変換
+    // glMatrixMode(GL_PROJECTION);  //カレント行列の設定
+    // glLoadIdentity();  //カレント行列初期化
+    // gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
+
+    // // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ウィンドウクリア
+    // //ビューイング変換準備
+    // glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
+    // glLoadIdentity();  //行列初期化
+    // // //視点極座標から直交座標へ変換
+    // // Vec_3D e;
+    // // e.x = eDist*cos(eDegX*M_PI/180.0)*sin(eDegY*M_PI/180.0);
+    // // e.y = eDist*sin(eDegX*M_PI/180.0);
+    // // e.z = eDist*cos(eDegX*M_PI/180.0)*cos(eDegY*M_PI/180.0);
+    // //視点設定・ビューイング変換
+    // gluLookAt(e.x+200, e.y, e.z, 50.0, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
+
+    // dispobj();
     
-    glutSwapBuffers();
+    // glutSwapBuffers();
+    //ディスプレイコールバック関数
 
+    static int frameCount = 0;   // フレーム数を記録する
+    double eyeOffset = 0;    // 左右の視差量。最初は今までと同じ200
+
+    // ウィンドウ全体に描画する
+    glViewport(0, 0, winW * rDisp, winH * rDisp);
+
+    // ウィンドウクリア
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 投影変換
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(
+        40.0,
+        (double)winW / (double)winH,
+        1.0,
+        10000.0
+    );
+
+    // ビューイング変換準備
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // 視点極座標から直交座標へ変換
+    Vec_3D e;
+    e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
+    e.y = eDist * sin(eDegX * M_PI / 180.0);
+    e.z = eDist * cos(eDegX * M_PI / 180.0) * cos(eDegY * M_PI / 180.0);
+
+    // 偶数フレームなら左目、奇数フレームなら右目
+    if (frameCount % 2 == 0) {
+        // 左目用
+        gluLookAt(
+            e.x - eyeOffset, e.y, e.z,
+            -50.0, 0.0, 0.0,
+            0.0, 1.0, 0.0
+        );
+    } else {
+        // 右目用
+        gluLookAt(
+            e.x + eyeOffset, e.y, e.z,
+            50.0, 0.0, 0.0,
+            0.0, 1.0, 0.0
+        );
+    }
+
+    // オブジェクト描画
+    dispobj();
+    glutSwapBuffers();
+    frameCount++;
+    glutPostRedisplay();
 
 }
 
@@ -136,13 +200,13 @@ void dispobj(){
     glPushMatrix();
 
     // 中心に寄せる
-    float objectSize = SIZE * SPACING;
+    float objectSize = VOXEL_SIZE * SPACING;
     setColor(0.5, 0.0, 0.5, 1.0);
     glTranslatef(-objectSize / 2.0f,
                  0,
                  -objectSize / 2.0f);
 
-    DrawVoxelObject(SIZE);
+    DrawVoxelObject(VOXEL_SIZE);
     glPopMatrix();
 }
 
@@ -205,9 +269,9 @@ void mouse(int button, int state, int x, int y)
             int voxelY = static_cast<int>(objY / SPACING);
             int voxelZ = static_cast<int>(objZ / SPACING);
             
-            if (voxelX >= 0 && voxelX < SIZE &&
-                voxelY >= 0 && voxelY < SIZE &&
-                voxelZ >= 0 && voxelZ < SIZE) {
+            if (voxelX >= 0 && voxelX < VOXEL_SIZE &&
+                voxelY >= 0 && voxelY < VOXEL_SIZE &&
+                voxelZ >= 0 && voxelZ < VOXEL_SIZE) {
                 voxels[voxelX][voxelY][voxelZ] = !voxels[voxelX][voxelY][voxelZ];  //ボクセルの状態をトグル 
             }
         }

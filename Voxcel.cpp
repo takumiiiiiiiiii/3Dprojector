@@ -1,13 +1,17 @@
 #include  "Voxcel.h"
 #include  "Globals.h"
-#include <GLUT/glut.h>  //OpenGL/GLUT
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
+#include <GL/freeglut.h>
+#endif
 
 // 範囲内かつボクセルが存在するか
 bool IsVoxel(int x, int y, int z)
 {
-    if (x < 0 || x >= SIZE ||
-        y < 0 || y >= SIZE ||
-        z < 0 || z >= SIZE)
+    if (x < 0 || x >= VOXEL_SIZE ||
+        y < 0 || y >= VOXEL_SIZE ||
+        z < 0 || z >= VOXEL_SIZE)
     {
         return false;
     }
@@ -17,11 +21,11 @@ bool IsVoxel(int x, int y, int z)
 
 void InitVoxcels()
 {
-   for (int x = 0; x < SIZE; x++)
+   for (int x = 0; x < VOXEL_SIZE; x++)
     {
-        for (int y = 0; y < SIZE; y++)
+        for (int y = 0; y < VOXEL_SIZE; y++)
         {
-            for (int z = 0; z < SIZE; z++)
+            for (int z = 0; z < VOXEL_SIZE; z++)
             {
                 voxels[x][y][z] = true;
                 // if(x<SIZE-y){

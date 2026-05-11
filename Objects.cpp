@@ -2,7 +2,11 @@
 #include "Objects.h"
 #include "Globals.h"
 #include "Vec3D.h"
-#include <GLUT/glut.h>  //OpenGL/GLUT
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
+#include <GL/freeglut.h>
+#endif
 #include <opencv2/opencv.hpp>  //OpenCV
 #include "GLApp.h"
 #include "Shape.h"

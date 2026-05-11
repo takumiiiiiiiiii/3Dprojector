@@ -68,4 +68,4 @@ double rDisp=1.0;
 const float SPACING = 50.0f;
 
 // ボクセルの存在情報
-bool voxels[SIZE][SIZE][SIZE];
+bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
