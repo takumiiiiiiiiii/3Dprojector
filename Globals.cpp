@@ -69,3 +69,7 @@ const float SPACING = 50.0f;
 
 // ボクセルの存在情報
 bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
+
+
+//モデルの初期化
+Model model;

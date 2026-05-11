@@ -5,6 +5,7 @@
 #include <GL/freeglut.h>
 #endif
 #include <opencv2/opencv.hpp>  //OpenCV
+#include "Model.h"
 #include "Vec3D.h"
 
 void initGL();

@@ -1,5 +1,6 @@
 #pragma once
 #include "Vec3D.h"
+#include "Model.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -86,3 +87,6 @@ extern const float SPACING;
 
 // ボクセルの存在情報
 extern bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
+
+//3Dモデル
+extern Model model;
