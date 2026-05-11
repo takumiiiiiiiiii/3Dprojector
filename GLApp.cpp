@@ -6,7 +6,12 @@
 //初期設定関数
 void initGL()
 {
-    
+    // モデル読み込み
+    if (!model.Load("Jusmin_Lowpoly.obj"))
+    {
+        std::cerr << "モデルの読み込みに失敗しました" << std::endl;
+        exit(1);
+    }
     //ウィンドウ生成
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
     glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
@@ -87,47 +92,7 @@ void initGL()
 //ディスプレイコールバック関数
 void display()
 {
-    // glViewport(0, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
-
-    // //投影変換
-    // glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    // glLoadIdentity();  //カレント行列初期化
-    // gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ウィンドウクリア
-    // //ビューイング変換準備
-    // glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
-    // glLoadIdentity();  //行列初期化
-    // //視点極座標から直交座標へ変換
-    // Vec_3D e;
-    // e.x = eDist*cos(eDegX*M_PI/180.0)*sin(eDegY*M_PI/180.0);
-    // e.y = eDist*sin(eDegX*M_PI/180.0);
-    // e.z = eDist*cos(eDegX*M_PI/180.0)*cos(eDegY*M_PI/180.0);
-    // //視点設定・ビューイング変換
-    // gluLookAt(e.x-200, e.y, e.z, -50, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
-    // dispobj();
-
-    // glViewport(winW*rDisp*0.5, 0, winW*rDisp*0.5, winH*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
-
-    // //投影変換
-    // glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    // glLoadIdentity();  //カレント行列初期化
-    // gluPerspective(40.0, (double)winW/(double)winH, 1.0, 10000.0);  //投影変換行列生成
-
-    // // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ウィンドウクリア
-    // //ビューイング変換準備
-    // glMatrixMode(GL_MODELVIEW);  //カレント行列の設定
-    // glLoadIdentity();  //行列初期化
-    // // //視点極座標から直交座標へ変換
-    // // Vec_3D e;
-    // // e.x = eDist*cos(eDegX*M_PI/180.0)*sin(eDegY*M_PI/180.0);
-    // // e.y = eDist*sin(eDegX*M_PI/180.0);
-    // // e.z = eDist*cos(eDegX*M_PI/180.0)*cos(eDegY*M_PI/180.0);
-    // //視点設定・ビューイング変換
-    // gluLookAt(e.x+200, e.y, e.z, 50.0, 0.0, 0.0, 0.0, 1.0, 0.0);  //ビューイング変換行列生成
-
-    // dispobj();
     
-    // glutSwapBuffers();
     //ディスプレイコールバック関数
 
     static int frameCount = 0;   // フレーム数を記録する
@@ -175,7 +140,6 @@ void display()
             0.0, 1.0, 0.0
         );
     }
-
     // オブジェクト描画
     dispobj();
     glutSwapBuffers();
@@ -185,7 +149,6 @@ void display()
 }
 
 void dispobj(){
-
     //光源配置
     GLfloat lightPos0[] = {500.0, 2000.0, 2500.0, 1.0};  //光源座標(点光源)
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);  //光源配置
@@ -205,9 +168,21 @@ void dispobj(){
     glTranslatef(-objectSize / 2.0f,
                  0,
                  -objectSize / 2.0f);
-
-    DrawVoxelObject(VOXEL_SIZE);
+    // DrawVoxelObject(VOXEL_SIZE);
+    
+    model.Draw();
     glPopMatrix();
+
+    glPushMatrix();
+    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+    glScaled(150.0,150.0,150.0);
+
+    setColor(1.0, 1.0, 1.0, 1.0);
+    model.Draw();
+    glPopMatrix();
+    // モデル描画
+
 }
 
 
