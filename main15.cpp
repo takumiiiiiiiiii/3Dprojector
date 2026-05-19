@@ -1,4 +1,7 @@
-//g++ -O3 main15.cpp GLApp.cpp Globals.cpp Objects.cpp Shape.cpp Vec3D.cpp Voxcel.cpp Model.cpp -std=c++11 -framework OpenGL -framework GLUT `pkg-config --cflags --libs opencv4 assimp` -Wno-deprecated
+//g++ -mmacosx-version-min=26.0 -O3 main15.cpp GLApp.cpp Globals.cpp Objects.cpp Shape.cpp Vec3D.cpp Voxcel.cpp Model.cpp \
+  -std=c++11 -framework OpenGL -framework GLUT \
+  `pkg-config --cflags --libs opencv4 assimp` \
+  -Wno-deprecated
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
