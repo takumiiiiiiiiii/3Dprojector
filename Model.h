@@ -34,7 +34,6 @@ public:
 
     // モデルを読み込む
     bool Load(const std::string& filepath);
-
     // モデルを描画する
     void Draw();
 
@@ -49,7 +48,7 @@ private:
 
     // ノードを再帰的に処理する
     void ProcessNode(aiNode* node, const aiScene* scene);
-
+    
     // メッシュを処理する
     void ProcessMesh(aiMesh* mesh);
 };
