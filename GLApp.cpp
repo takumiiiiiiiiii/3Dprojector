@@ -93,13 +93,13 @@ void initGL()
 void display()
 {
     
-    //ディスプレイコールバック関数
+    //ディスプレイコールバック関数では、立体視のためにウィンドウを左右に分割して描画します。
+    int viewW = static_cast<int>(winW * rDisp / 2.0);
+    int viewH = static_cast<int>(winH * rDisp);
+    double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
-    static int frameCount = 0;   // フレーム数を記録する
-    double eyeOffset = 0;    // 左右の視差量。最初は今までと同じ200
-
-    // ウィンドウ全体に描画する
-    glViewport(0, 0, winW * rDisp, winH * rDisp);
+    // 左目用に左半分へ描画する
+    glViewport(0, 0, viewW, viewH);
 
     // ウィンドウクリア
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -109,7 +109,7 @@ void display()
     glLoadIdentity();
     gluPerspective(
         40.0,
-        (double)winW / (double)winH,
+        aspect,
         1.0,
         10000.0
     );
@@ -123,29 +123,42 @@ void display()
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
     e.z = eDist * cos(eDegX * M_PI / 180.0) * cos(eDegY * M_PI / 180.0);
-
-    // 偶数フレームなら左目、奇数フレームなら右目
-    if (frameCount % 2 == 0) {
-        // 左目用
-        gluLookAt(
+            gluLookAt(
             e.x - eyeOffset, e.y, e.z,
-            -50.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
             0.0, 1.0, 0.0
         );
-    } else {
-        // 右目用
-        gluLookAt(
-            e.x + eyeOffset, e.y, e.z,
-            50.0, 0.0, 0.0,
-            0.0, 1.0, 0.0
-        );
-    }
+    // オブジェクト描画
+    dispobj();
+
+
+    // 右目用に右半分へ描画する
+    glViewport(viewW, 0, viewW, viewH);
+
+    // // ウィンドウクリア
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 投影変換
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(
+        40.0,
+        aspect,
+        1.0,
+        10000.0
+    );
+
+    // ビューイング変換準備
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(
+        e.x + eyeOffset, e.y, e.z,
+        0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0
+    );
     // オブジェクト描画
     dispobj();
     glutSwapBuffers();
-    frameCount++;
-    glutPostRedisplay();
-
 }
 
 void dispobj(){
@@ -169,17 +182,35 @@ void dispobj(){
                  0,
                  -objectSize / 2.0f);
     // DrawVoxelObject(VOXEL_SIZE);
-    
-    model.Draw();
+    penguin(0,0);
+    // model.Draw();
     glPopMatrix();
 
+    //ボクセル
+    glPushMatrix();
+
+    // 中心に寄せる
+
+    setColor(0.5, 0.0, 0.5, 1.0);
+    glTranslatef(400,
+        
+                 0,
+                 -2100);
+    // DrawVoxelObject(VOXEL_SIZE);
+    penguin_animation();
+    penguin(0,0);
+    // model.Draw();
+    glPopMatrix();
+
+    //3Dモデル
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(150.0,150.0,150.0);
 
     setColor(1.0, 1.0, 1.0, 1.0);
-    model.Draw();
+    // model.Draw();
+    
     glPopMatrix();
     // モデル描画
 
@@ -189,12 +220,14 @@ void dispobj(){
 //リサイズコールバック関数
 void reshape(int w, int h)
 {
-    glViewport(0, 0, w*rDisp*0.5, h*rDisp);  //ウィンドウ内の描画領域(ビューポート)の指定
+    int viewW = static_cast<int>(w * rDisp / 2.0);
+    int viewH = static_cast<int>(h * rDisp);
+    glViewport(0, 0, viewW, viewH);  //ウィンドウ内の描画領域(ビューポート)の指定
 
     //投影変換
     glMatrixMode(GL_PROJECTION);  //カレント行列の設定
     glLoadIdentity();  //カレント行列初期化
-    gluPerspective(40.0, (double)w/(double)h, 1.0, 10000.0);  //投影変換行列生成
+    gluPerspective(40.0, (double)viewW/(double)viewH, 1.0, 10000.0);  //投影変換行列生成
     
     winW = w; winH = h;  //ウィンドウサイズをグローバル変数に格納
 }
@@ -275,7 +308,14 @@ void keyboard(unsigned char key, int x, int y)
 {
     switch (key) {
         case 27:  //[ESC]キー
+        case 'w':
+            eyeOffset += 10.0;
+            break;
+        case 's':
+            eyeOffset -= 10.0;
+            break;
         case 'q':  //[q]キー
+        
         case 'Q':  //[Q]キー
             exit(0);  //プロセス終了
             break;

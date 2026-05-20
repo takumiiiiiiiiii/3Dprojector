@@ -82,6 +82,9 @@ extern int array[5][50];
 
 extern double rDisp;
 
+//立体視変数
+extern double eyeOffset;//左右の視差量
+
 //僕せる
 extern const float SPACING;
 
