@@ -11,6 +11,7 @@
 
 void initGL();
 void display();
+void initView(bool isLeftEye);
 void dispobj();
 void reshape(int w, int h);
 void timer(int value);

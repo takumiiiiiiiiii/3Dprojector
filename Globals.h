@@ -81,6 +81,9 @@ extern const int cols;
 extern int array[5][50];
 
 extern double rDisp;
+//実際の描画サイズ
+extern double realDisp;
+extern double disDisp;
 
 //立体視変数
 extern double eyeOffset;//左右の視差量

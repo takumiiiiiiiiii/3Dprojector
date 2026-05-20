@@ -93,25 +93,99 @@ void initGL()
 void display()
 {
     
-    //ディスプレイコールバック関数では、立体視のためにウィンドウを左右に分割して描画します。
+    // //ディスプレイコールバック関数では、立体視のためにウィンドウを左右に分割して描画します。
+    // int viewW = static_cast<int>(winW * rDisp / 2.0);
+    // int viewH = static_cast<int>(winH * rDisp);
+    // double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+
+    // // 左目用に左半分へ描画する
+    // glViewport(0, 0, viewW, viewH);
+
+    // // ウィンドウクリア
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // // 投影変換
+    // glMatrixMode(GL_PROJECTION);
+    // glLoadIdentity();
+    // gluPerspective(
+    //     40.0,
+    //     aspect,
+    //     1.0,
+    //     10000.0
+    // );
+
+    // // ビューイング変換準備
+    // glMatrixMode(GL_MODELVIEW);
+    // glLoadIdentity();
+
+    // // 視点極座標から直交座標へ変換
+    // Vec_3D e;
+    // e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
+    // e.y = eDist * sin(eDegX * M_PI / 180.0);
+    // e.z = eDist * cos(eDegX * M_PI / 180.0) * cos(eDegY * M_PI / 180.0);
+    //         gluLookAt(
+    //         e.x - eyeOffset, e.y, e.z,
+    //         0.0, 0.0, 0.0,
+    //         0.0, 1.0, 0.0
+    //     );
+    initView(true);
+    // オブジェクト描画
+    dispobj();
+    // 右目用に右半分へ描画する
+    //glViewport(viewW, 0, viewW, viewH);
+
+    // // ウィンドウクリア
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // // 投影変換
+    // glMatrixMode(GL_PROJECTION);
+    // glLoadIdentity();
+    // gluPerspective(
+    //     40.0,
+    //     aspect,
+    //     1.0,
+    //     10000.0
+    // );
+    // // ビューイング変換準備
+    // glMatrixMode(GL_MODELVIEW);
+    // glLoadIdentity();
+    // gluLookAt(
+    //     e.x + eyeOffset, e.y, e.z,
+    //     0.0, 0.0, 0.0,
+    //     0.0, 1.0, 0.0
+    // );
+    initView(false);
+    // オブジェクト描画
+    dispobj();
+    glutSwapBuffers();
+}
+void initView(bool isLeftEye) {
     int viewW = static_cast<int>(winW * rDisp / 2.0);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
-    // 左目用に左半分へ描画する
-    glViewport(0, 0, viewW, viewH);
-
-    // ウィンドウクリア
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (isLeftEye) {
+        glViewport(0, 0, viewW, viewH);
+    } else {
+        glViewport(viewW, 0, viewW, viewH);
+    }
+    if(isLeftEye){
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
 
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(
-        40.0,
-        aspect,
-        1.0,
-        10000.0
+    // gluPerspective(
+    //     40.0,
+    //     aspect,
+    //     1.0,
+    //     10000.0
+    // );
+    glFrustum(
+        -aspect, aspect,
+        -1.0, 1.0,
+        1.0, 10000.0
     );
 
     // ビューイング変換準備
@@ -123,42 +197,33 @@ void display()
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
     e.z = eDist * cos(eDegX * M_PI / 180.0) * cos(eDegY * M_PI / 180.0);
-            gluLookAt(
+
+    // if (isLeftEye) {
+    //     gluLookAt(
+    //         e.x - eyeOffset, e.y, e.z,
+    //         0.0, 0.0, 0.0,
+    //         0.0, 1.0, 0.0
+    //     );
+    // } else {
+    //     gluLookAt(
+    //         e.x + eyeOffset, e.y, e.z,
+    //         0.0, 0.0, 0.0,
+    //         0.0, 1.0, 0.0
+    //     );
+    // }
+     if (isLeftEye) {
+        gluLookAt(
             e.x - eyeOffset, e.y, e.z,
-            0.0, 0.0, 0.0,
+            e.x - eyeOffset, e.y, 0.0,
             0.0, 1.0, 0.0
         );
-    // オブジェクト描画
-    dispobj();
-
-
-    // 右目用に右半分へ描画する
-    glViewport(viewW, 0, viewW, viewH);
-
-    // // ウィンドウクリア
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // 投影変換
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(
-        40.0,
-        aspect,
-        1.0,
-        10000.0
-    );
-
-    // ビューイング変換準備
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    gluLookAt(
-        e.x + eyeOffset, e.y, e.z,
-        0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0
-    );
-    // オブジェクト描画
-    dispobj();
-    glutSwapBuffers();
+    } else {
+        gluLookAt(
+            e.x + eyeOffset, e.y, e.z,
+            e.x - eyeOffset, e.y,0.0,
+            0.0, 1.0, 0.0
+        );
+    }
 }
 
 void dispobj(){
@@ -193,7 +258,6 @@ void dispobj(){
 
     setColor(0.5, 0.0, 0.5, 1.0);
     glTranslatef(400,
-        
                  0,
                  -2100);
     // DrawVoxelObject(VOXEL_SIZE);
