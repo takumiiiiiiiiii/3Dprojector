@@ -5,6 +5,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <Vec3D.h>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -14,10 +15,27 @@
 // 頂点情報
 struct Vertex
 {
-    float x;
-    float y;
-    float z;
+    Vec_3D Position;//位置
+    Vec_3D Normal;//法線ベクトル
+    Vec_2D TexCoords;//テクスチャ座標ベクトル
 };
+struct Texture{
+    usigned int id;
+    string type;
+}
+class Mesh{
+    public:
+        //メッシュデータ
+        vector<Vertex> vertices;
+        vector<unsigned int> indices;  
+        vector<Texture> textures;
+        Mesh(vector<Vertex> vertices,vector<unsigned int> indices,vector<Texture> textures);
+        void Draw(Shader &shader);
+    private:
+        //レンダーデータ
+        unsigned int VAO,VBO,EBO;
+        void setupMesh();
+}
 
 // 三角形のインデックス情報
 struct Face

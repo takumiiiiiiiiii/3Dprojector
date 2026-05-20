@@ -5,6 +5,11 @@ typedef struct _Vec_3D
 {
     double x, y, z;
 } Vec_3D;
+// 二次元ベクトル構造体
+typedef struct _Vec_2D
+{
+    double x, y;
+} Vec_2D;
 
 // ベクトル計算関数の宣言
 Vec_3D crossProduct(Vec_3D vec1, Vec_3D vec2);  // 外積計算
