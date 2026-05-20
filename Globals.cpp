@@ -16,7 +16,7 @@ double height_cy = 80;
 double rad_cy = 30;
 double dis = 1200;
 //アニメーション
-double leg_range = 50;
+double leg_range = 1900;
 double legL_anima = 0;
 double legR_anima = 0;
 double legLR_flag = false;
@@ -64,6 +64,10 @@ const int rows = 5;
 const int cols = 50;
 int array[5][50];
 double rDisp=1.0;
+
+//立体視変数
+double eyeOffset = 0;//左右の視差量
+
 // ボクセルの存在情報
 const float SPACING = 50.0f;
 
