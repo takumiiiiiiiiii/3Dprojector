@@ -15,10 +15,12 @@ void Mesh::Mesh(vector<Vertex> vertices,vector<unsigned int> indices,vector<Text
 }
 
 void Mesh::setupMesh(){
-    glGenVertexArrays(1,&VAO);
-    glGenBuffers(1,&VBO);
-    glGenBuffers(1,&EBO);  
+    //VAO,VBO,EBOの生成とバインド
+    glGenVertexArrays(1,&VAO);//頂点の配列オブジェクト
+    glGenBuffers(1,&VBO);     //頂点のバッファオブジェクト
+    glGenBuffers(1,&EBO);     //インデックスのバッファオブジェクト
 
+    //
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(Vertex),&vertices[0],GL_STATIC_DRAW);
