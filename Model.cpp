@@ -15,12 +15,13 @@ void Mesh::Mesh(vector<Vertex> vertices,vector<unsigned int> indices,vector<Text
 }
 
 void Mesh::setupMesh(){
+    //バインドの意味は、OpenGLに対して「これからこのオブジェクトを操作しますよ」と伝えることです。
     //VAO,VBO,EBOの生成とバインド
     glGenVertexArrays(1,&VAO);//頂点の配列オブジェクト
     glGenBuffers(1,&VBO);     //頂点のバッファオブジェクト
     glGenBuffers(1,&EBO);     //インデックスのバッファオブジェクト
 
-    //
+    //VAOをバインドして、VBOとEBOを設定
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(Vertex),&vertices[0],GL_STATIC_DRAW);
