@@ -10,7 +10,6 @@
 #include <opencv2/opencv.hpp>  //OpenCV
 #include <math.h>
 
-
 //----------床パネル----------
 void draw_floor(double scale_x,double scale_z,double x,double y,double z)
 {
@@ -38,7 +37,6 @@ void draw_floor(double scale_x,double scale_z,double x,double y,double z)
     glEnd();  //図形終了
         glPopMatrix();
 }
-
 
 void glMyCylinder(double top, double bottom, double height, double slices)
 {
@@ -157,7 +155,6 @@ void setColor(double r, double g, double b, double a)
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spe);  //鏡面反射
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shi);  //ハイライト
 }
-
 
 
 // 鏡面反射のセット

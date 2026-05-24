@@ -6,16 +6,18 @@
 //初期設定関数
 void initGL()
 {
+    //ウィンドウ生成
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
+    glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
+    glutCreateWindow("CG Final");  //ウィンドウ生成
+
     // モデル読み込み
+    // テクスチャをOpenGLへ登録するため、ウィンドウ生成後に読み込む
     if (!model.Load("Jusmin_Lowpoly.obj"))
     {
         std::cerr << "モデルの読み込みに失敗しました" << std::endl;
         exit(1);
     }
-    //ウィンドウ生成
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
-    glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
-    glutCreateWindow("CG Final");  //ウィンドウ生成
     
     //コールバック関数指定
     glutDisplayFunc(display);  //ディスプレイコールバック関数（"display"）
@@ -269,11 +271,12 @@ void dispobj(){
     //3Dモデル
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+    glTranslated(0,0,-3000);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(150.0,150.0,150.0);
 
     setColor(1.0, 1.0, 1.0, 1.0);
-    // model.Draw();
+    model.Draw();
     
     glPopMatrix();
     // モデル描画
