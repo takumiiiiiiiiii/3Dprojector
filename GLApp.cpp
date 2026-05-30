@@ -28,7 +28,7 @@ void initGL()
     glutKeyboardFunc(keyboard);  //キーボードコールバック関数
     
     //各種設定
-    glClearColor(0.0, 202.0/255.0,244.0/255.0, 1.0);  //ウィンドウクリア色の指定（RGBA値）
+    glClearColor(0.0,0,0, 1.0);  //ウィンドウクリア色の指定（RGBA値）
     glEnable(GL_DEPTH_TEST);  //デプスバッファ有効化
     glEnable(GL_NORMALIZE);  //ベクトル正規化有効化
     glEnable(GL_BLEND);  //ブレンディング有効化
@@ -167,9 +167,9 @@ void initView(bool isLeftEye) {
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
     if (isLeftEye) {
-        glViewport(0, 0, viewW, viewH);
+        glViewport(0, 0, viewW, viewH*2);
     } else {
-        glViewport(viewW, 0, viewW, viewH);
+        glViewport(viewW, 0, viewW, viewH*2);
     }
     if(isLeftEye){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -217,13 +217,13 @@ void initView(bool isLeftEye) {
         gluLookAt(
             e.x - eyeOffset, e.y, e.z,
             e.x - eyeOffset, e.y, 0.0,
-            0.0, 1.0, 0.0
+            1.0, 0.0, 0.0
         );
     } else {
         gluLookAt(
             e.x + eyeOffset, e.y, e.z,
             e.x - eyeOffset, e.y,0.0,
-            0.0, 1.0, 0.0
+            1.0, 0.0, 0.0
         );
     }
 }
@@ -257,7 +257,6 @@ void dispobj(){
     glPushMatrix();
 
     // 中心に寄せる
-
     setColor(0.5, 0.0, 0.5, 1.0);
     glTranslatef(400,
                  0,
@@ -276,10 +275,18 @@ void dispobj(){
     glScaled(150.0,150.0,150.0);
 
     setColor(1.0, 1.0, 1.0, 1.0);
-    model.Draw();
+    //model.Draw();
     
     glPopMatrix();
-    // モデル描画
+    if(placedCubes.size()>0){
+        // モデル描画
+        for(auto cube : placedCubes){
+            glPushMatrix();
+            glTranslated(cube.gx * GRID_SIZE,cube.gy * (GRID_SIZE/2.0),cube.gz * GRID_SIZE);
+            glutSolidCube(GRID_SIZE);
+            glPopMatrix();
+        }
+    }
 
 }
 
@@ -380,6 +387,9 @@ void keyboard(unsigned char key, int x, int y)
             break;
         case 's':
             eyeOffset -= 10.0;
+            break;
+        case 'a':
+            NormalView = !NormalView;
             break;
         case 'q':  //[q]キー
         

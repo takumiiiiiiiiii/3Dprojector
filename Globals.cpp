@@ -68,6 +68,9 @@ double rDisp=1.0;
 //立体視変数
 double eyeOffset = 0;//左右の視差量
 
+//描画モード
+bool NormalView = true;
+
 // ボクセルの存在情報
 const float SPACING = 50.0f;
 
@@ -77,3 +80,5 @@ bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
 
 //モデルの初期化
 Model model;
+
+extern std::vector<CubeCell> placedCubes = {};

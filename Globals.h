@@ -1,6 +1,7 @@
 #pragma once
 #include "Vec3D.h"
 #include "Model.h"
+#include "CubeDispenser.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -9,6 +10,7 @@
 #define TILE 50
 #define OSTS 10
 #define VOXEL_SIZE 20
+#define GRID_SIZE 10.0f
 
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
@@ -81,6 +83,9 @@ extern const int cols;
 extern int array[5][50];
 
 extern double rDisp;
+
+//描画モード
+extern bool NormalView;
 //実際の描画サイズ
 extern double realDisp;
 extern double disDisp;
@@ -96,3 +101,7 @@ extern bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
 
 //3Dモデル
 extern Model model;
+
+//キューブ配置
+//キューブの大きさ
+extern std::vector<CubeCell> placedCubes; // 配置されたキューブの情報を格納するベクター
