@@ -81,4 +81,6 @@ bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
 //モデルの初期化
 Model model;
 
-extern std::vector<CubeCell> placedCubes = {};
+std::vector<CubeCell> placedCubes;
+
+CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数

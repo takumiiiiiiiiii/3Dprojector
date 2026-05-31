@@ -1,10 +1,11 @@
 #pragma once
-#include <opencl-c-base.h>
+// #include <opencl-c-base.h>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
 #include <GL/freeglut.h>
 #endif
+
 // 三次元ベクトル構造体
 typedef struct _Vec_3D
 {

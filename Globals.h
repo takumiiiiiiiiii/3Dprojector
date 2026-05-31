@@ -10,7 +10,7 @@
 #define TILE 50
 #define OSTS 10
 #define VOXEL_SIZE 20
-#define GRID_SIZE 10.0f
+#define GRID_SIZE 500.0f
 
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
@@ -105,3 +105,4 @@ extern Model model;
 //キューブ配置
 //キューブの大きさ
 extern std::vector<CubeCell> placedCubes; // 配置されたキューブの情報を格納するベクター
+extern CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数
