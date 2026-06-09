@@ -18,5 +18,6 @@ void timer(int value);
 void mouseMove(int x, int y);
 void mouse(int button, int state, int x, int y);
 void motion(int x, int y);
+void mouseWheel(int wheel,int direction,int x,int y);
 void keyboard(unsigned char key, int x, int y);
 void setrundum(int i, int j);

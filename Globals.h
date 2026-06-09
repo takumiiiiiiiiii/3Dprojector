@@ -15,10 +15,28 @@
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
 
+//カメラの位置と向き
 extern double eDist;
 extern double eDegX;
 extern double eDegY;
+extern double lookX;
+extern double lookY;
+extern double lookZ;
+extern double camX;
+extern double camY;
+extern double camZ;
+extern double testD;
+// 視点極座標から直交座標へ変換
 
+// カメラからターゲットへの角度
+extern double cameraToTargetDegX;
+extern double cameraToTargetDegY;
+extern double cameraLength;
+
+//視点の位置
+extern Vec_3D e;
+
+//ウィンドウサイズ
 extern int winW;
 extern int winH;
 

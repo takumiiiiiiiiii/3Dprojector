@@ -4,6 +4,13 @@ Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
 //視点極座標
 double eDist, eDegX, eDegY;
+double camX=0, camY=0, camZ=0;
+double testD = 0;
+double cameraToTargetDegX = 0;
+double cameraToTargetDegY = 0;
+double cameraLength = 10000;
+double lookX=cameraLength, lookY=0, lookZ=0;
+Vec_3D e; // 視点の位置
 // ウィンドウサイズ
 int winW, winH;
 //マウス情報
@@ -84,3 +91,6 @@ Model model;
 std::vector<CubeCell> placedCubes;
 
 CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数
+
+
+

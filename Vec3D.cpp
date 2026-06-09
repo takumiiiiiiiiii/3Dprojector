@@ -100,3 +100,10 @@ Vec_3D screen2world(int x, int y)
     Vec_3D p = {objX, objY, objZ};
     return p;
 }
+
+// Vec_3D構造体を作成する関数
+Vec_3D makeVec(double x, double y, double z)
+{
+    Vec_3D v = {x, y, z};
+    return v;
+}

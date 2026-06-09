@@ -4,6 +4,7 @@
 #include "Objects.h"
 #include "Voxcel.h"
 #include "Ray.h"
+#include "Model.h"
 //初期設定関数
 void initGL()
 {
@@ -27,6 +28,7 @@ void initGL()
     glutPassiveMotionFunc(mouseMove);  //マウス移動コールバック関数
     glutMouseFunc(mouse);  //マウスクリックコールバック関数
     glutMotionFunc(motion);  //マウスドラッグコールバック関数
+    // glutMouseWheelFunc(mouseWheel);
     glutKeyboardFunc(keyboard);  //キーボードコールバック関数
     
     //各種設定
@@ -110,7 +112,6 @@ void initView(bool isLeftEye) {
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
     // 視点極座標から直交座標へ変換
-    Vec_3D e;
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
     e.z = eDist * cos(eDegX * M_PI / 180.0) * cos(eDegY * M_PI / 180.0);
@@ -123,26 +124,37 @@ void initView(bool isLeftEye) {
         glViewport(0, 0, viewW,viewH);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-            glFrustum(
-        -aspect, aspect,
-        -1.0, 1.0,
-        1.0, 10000.0
+        // glFrustum(
+        // -aspect, aspect,
+        // -1.0, 1.0,
+        // 1.0, 10000.0
+        // );
+        gluPerspective(
+            40.0,
+            aspect,
+            1.0,
+            10000.0
         );
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         gluLookAt(
-            e.x , e.y, e.z,
-            e.x , e.y, 0.0,
+            camX ,camY,camZ,
+            lookX+camX, lookY+ camY, lookZ+camZ,
             0.0, 1.0, 0.0
         );
+        //  gluLookAt(
+        //     e.x  +camX , e.y + camY, e.z + camZ,
+        //     camX+e.x, camY+e.y, camZ+e.z,
+        //     0.0, 1.0, 0.0
+        // );
         return;
     }
     
 
     if (isLeftEye) {
-        glViewport(0, 0, viewW, viewH*2);
+        glViewport(0,  -viewH/2, viewW, viewH*2);
     } else {
-        glViewport(viewW, 0, viewW, viewH*2);
+        glViewport(viewW,-viewH/2, viewW, viewH*2);
     }
     if(isLeftEye){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -158,40 +170,67 @@ void initView(bool isLeftEye) {
     //     10000.0
     // );
     glFrustum(
-        -aspect, aspect,
-        -1.0, 1.0,
-        1.0, 10000.0
+        -33.0/2.0, 33.0/2.0,
+        -97.0/4.0,97.0/4.0,
+        50, 10000.0
     );
+    // glFrustum(
+    //     -aspect, aspect,
+    //     -1.0, 1.0,
+    //     1.0, 10000.0
+    // );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    // if (isLeftEye) {
-    //     gluLookAt(
-    //         e.x - eyeOffset, e.y, e.z,
-    //         0.0, 0.0, 0.0,
-    //         0.0, 1.0, 0.0
-    //     );
-    // } else {
-    //     gluLookAt(
-    //         e.x + eyeOffset, e.y, e.z,
-    //         0.0, 0.0, 0.0,
-    //         0.0, 1.0, 0.0
-    //     );
-    // }
+
      if (isLeftEye) {
         gluLookAt(
-            e.x - eyeOffset, e.y, e.z,
-            e.x - eyeOffset, e.y, 0.0,
-            1.0, 0.0, 0.0
+            eyeOffset, 97*testD,66*testD,
+            0, 0.0, 0.0,
+            1, 0, 0.0
         );
     } else {
         gluLookAt(
-            e.x + eyeOffset, e.y, e.z,
-            e.x - eyeOffset, e.y,0.0,
-            1.0, 0.0, 0.0
+            -eyeOffset, 97*testD, 66*testD,
+            0, 0.0,0.0,
+            1, 0, 0.0
         );
     }
+    // if (isLeftEye) {
+    //     gluLookAt(
+    //         eyeOffset, 6305,4290,
+    //         0, 0.0, 0.0,
+    //         1,0,0
+    //     );
+    // } else {
+    //     gluLookAt(
+    //         -eyeOffset,6305,4290,
+    //         0, 0.0,0.0,
+    //         1,0,0
+    //     );
+    // }
+
+    // if (isLeftEye) {
+    // std::cout << "camra pos: " << e.x + camX << ", " << e.y + camY << ", " << e.z + camZ << std::endl;
+    //     gluLookAt(
+    //         e.x  +camX , e.y + camY, e.z + camZ,
+    //         0.0, 0.0, 0.0,
+    //         0, 1, 0.0
+    //     );
+    // } else {
+    //     gluLookAt(
+    //         e.x  +camX , e.y + camY, e.z + camZ,
+    //         0.0, 0.0,0.0,
+    //         0.0, 1, 0.0
+    //     );
+    // }
+    // gluLookAt(
+    //         e.x  +camX , e.y + camY, e.z + camZ,
+    //         lookX+camX, lookY+ camY, camZ,
+    //         -1.0, 0.0, 0.0
+    //     );
+    
 }
 
 void dispobj(){
@@ -203,7 +242,7 @@ void dispobj(){
 
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
-    draw_floor(1,1,0,0,0);
+    // draw_floor(1,1,0,0,0);
 
     //ボクセル
     glPushMatrix();
@@ -215,7 +254,7 @@ void dispobj(){
                  0,
                  -objectSize / 2.0f);
     // DrawVoxelObject(VOXEL_SIZE);
-    //penguin(0,0);
+    // penguin(0,0);
     // model.Draw();
     glPopMatrix();
 
@@ -227,8 +266,8 @@ void dispobj(){
     glTranslatef(400,
                  0,
                  -2100);
-    penguin_animation();
-    //penguin(0,0);
+    // penguin_animation();
+    // penguin(0,0);
     // model.Draw();
     glPopMatrix();
 
@@ -241,7 +280,6 @@ void dispobj(){
 
     setColor(1.0, 1.0, 1.0, 1.0);
     //model.Draw();
-    
     glPopMatrix();
     if(placedCubes.size()>0){
         // モデル描画
@@ -256,10 +294,8 @@ void dispobj(){
     glPushMatrix();
         glTranslated(pointingCell.gx*GRID_SIZE,pointingCell.gy*GRID_SIZE+GRID_SIZE/2,pointingCell.gz*GRID_SIZE);
         glScaled(1.0,1.0,1.0);
-       
         glutSolidCube(GRID_SIZE);
     glPopMatrix();
-    
 }
 
 
@@ -296,7 +332,7 @@ void mouseMove(int x,int y){
 
     Vec_3D hit;
     if(intersectFloor(ray,&hit)){
-        // std::cout << "Hit Point: (" << hit.x << ", " << hit.y << ", " << hit.z << ")" << std::endl;
+        // グリッドの中心にスナップするための調整
         if(hit.x < 0){
             hit.x -= static_cast<int>(GRID_SIZE/2);
         } else {
@@ -316,94 +352,93 @@ void mouseMove(int x,int y){
         pointingCell.gy = static_cast<int>(hit.y / GRID_SIZE);
         pointingCell.gz = static_cast<int>(hit.z / GRID_SIZE);
     }
-    // std::cout << "Mouse Moved to: (" << x << ", " << y << ")" << std::endl;
-    // // スクリーン座標 → ワールド座標
-    // Vec_3D click_point = screen2world(x, y);
-
-    // GLdouble model[16], proj[16];  //変換行列格納用
-    // GLint view[4];  //ビューポート設定格納用
-    // GLfloat winX, winY, winZ;  //ウィンドウ座標
-    // GLdouble objX, objY, objZ;  //ワールド座標
-    
-    // //マウス情報をグローバル変数に格納
-    // mX = x; mY = y;
-    
-    // //大きさ
-    // Vec_3D click_pos = screen2world(x, y);
-    // if(click_pos.x < 0){
-    //     click_pos.x -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.x += static_cast<int>(GRID_SIZE/2);
-    // }
-    // if(click_pos.z < 0){
-    //     click_pos.z -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.z += static_cast<int>(GRID_SIZE/2);
-    // }
-    // if(click_pos.y < 0){
-    //     click_pos.y -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.y += static_cast<int>(GRID_SIZE/2);
-    // }
-    // pointingCell.gx = static_cast<int>(click_pos.x/GRID_SIZE);
-    // pointingCell.gy = static_cast<int>(click_pos.y / GRID_SIZE);
-    // pointingCell.gz = static_cast<int>(click_pos.z / GRID_SIZE);
+    for(auto cube :placedCubes){
+        double t;
+        Vec_3D hit;
+        Vec_3D normal;
+        Ray ray = screen2ray(x,y);
+        if(intersectCubeCell(ray,cube,GRID_SIZE,&t,&hit,&normal)){
+            // std::cout << "Hit Point: (" << hit.x << ", " << hit.y << ", " << hit.z << ")" << std::endl;
+            // std::cout << "Hit Normal: (" << normal.x << ", " << normal.y << ", " << normal.z << ")" << std::endl;
+            // グリッドの中心にスナップするための調整
+            // if(hit.x < 0){
+            //     hit.x -= static_cast<int>(GRID_SIZE/2);
+            // } else {
+            //     hit.x += static_cast<int>(GRID_SIZE/2);
+            // }
+            // if(hit.z < 0){
+            //     hit.z -= static_cast<int>(GRID_SIZE/2);
+            // } else {
+            //     hit.z += static_cast<int>(GRID_SIZE/2);
+            // }
+            pointingCell = cube;
+            pointingCell.gx += static_cast<int>(normal.x);
+            pointingCell.gy += static_cast<int>(normal.y);
+            pointingCell.gz += static_cast<int>(normal.z);
+            //pointingCell.gx += static_cast<int>(normal.x);
+            // std::cout << "Hit Point: (" << hit.x << ", " << hit.y << ", " << hit.z << ")" << std::endl;
+            // std::cout << "Pointing Cell: (" << pointingCell.gx << ", " << pointingCell.gy << ", " << pointingCell.gz << ")" << std::endl;
+        }
+    }
 }
 
 //マウスクリックコールバック関数
 void mouse(int button, int state, int x, int y)
 {
-    // // スクリーン座標 → ワールド座標
-    // Vec_3D click_point = screen2world(x, y);
-
-    // GLdouble model[16], proj[16];  //変換行列格納用
-    // GLint view[4];  //ビューポート設定格納用
-    // GLfloat winX, winY, winZ;  //ウィンドウ座標
-    // GLdouble objX, objY, objZ;  //ワールド座標
-    
-    // //マウス情報をグローバル変数に格納
-    // mButton = button; mState = state; mX = x; mY = y;
-    
+    //マウス情報をグローバル変数に格納
+    mButton = button; mState = state; mX = x; mY = y;
+    Vec_3D forward = makeVec(lookX+camX, lookY+ camY, lookZ+camZ);
+    Vec_3D point = makeVec(camX ,camY, camZ);
+    Vec_3D cameraVec = diffVec(forward,point);
+    Vec_3D cameraVecNorm = vectorNormalize(cameraVec);
     // //大きさ
-    // Vec_3D click_pos = screen2world(x, y);
-    //     std::cout << "Mouse Clicked at: (" << click_pos.x << ", " << click_pos.y << ", " << click_pos.z << ")" << std::endl;
-    // if(click_pos.x < 0){
-    //     click_pos.x -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.x += static_cast<int>(GRID_SIZE/2);
-    // }
-    // if(click_pos.z < 0){
-    //     click_pos.z -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.z += static_cast<int>(GRID_SIZE/2);
-    // }
-    // if(click_pos.y < 0){
-    //     click_pos.y -= static_cast<int>(GRID_SIZE/2);
-    // } else {
-    //     click_pos.y += static_cast<int>(GRID_SIZE/2);
-    // }
-    // std::cout << "Adjusted Click Position: (" << click_pos.x << ", " << click_pos.y << ", " << click_pos.z << ")" << std::endl;
-
-    // pointingCell.gx = static_cast<int>(click_pos.x/GRID_SIZE);
-    // pointingCell.gy = static_cast<int>(click_pos.y / GRID_SIZE);
-    // pointingCell.gz = static_cast<int>(click_pos.z / GRID_SIZE);
-    // std::cout << "Pointing Cell: (" << pointingCell.gx << ", " << pointingCell.gy << ", " << pointingCell.gz << ")" << std::endl;
     if (mButton==GLUT_LEFT_BUTTON && mState==GLUT_DOWN) { //マウスボタンを押したとき
         placedCubes.push_back(pointingCell);
 	}
+    std::cout << "Mouse Button: " << mButton << ", State: " << mState << ", X: " << mX << ", Y: " << mY << std::endl;
+    
 }
 
 //マウスドラッグコールバック関数
 void motion(int x, int y)
 {
-    //左ドラッグで変更
-    if(mButton==GLUT_RIGHT_BUTTON){
-        eDegY += (mX-x)*0.2;  //マウス横方向→水平角
-        eDegX += (y-mY)*0.2;  //マウス縦方向→垂直角
-        if (eDegX>85) eDegX = 85.0;
-        if (eDegX<-85) eDegX = -85.0;
+    Vec_3D forward = makeVec(lookX+camX, lookY+ camY, lookZ+camZ);
+    Vec_3D point = makeVec(camX ,camY, camZ);
+    Vec_3D cameraVec = diffVec(forward,point);
+    Vec_3D cameraVecNorm = vectorNormalize(cameraVec);
+    //中ドラッグで視点を移動
+    if(mButton==GLUT_MIDDLE_BUTTON){
+       
+        cameraVec = vectorNormalize(cameraVec);
+        //カメラの右方向ベクトルを計算
+        Vec_3D right = crossProduct(cameraVec, makeVec(0,1,0));
+        right = vectorNormalize(right);
+        // vectorNormalize
+        camX += (mX-x)*20*right.x;  //マウス横方向→水平角
+        camY -= (mY-y)*20;  //マウス縦方向→垂直角
+        camZ += (mX-x)*20*right.z;  //マウス縦方向→垂直角
+        
+    }
+
+
+    //double cameraDis = vectorLen(cameraVec);
+    if (mButton == GLUT_RIGHT_BUTTON) {
+            // //右ドラッグでカメラを回転
+        cameraToTargetDegX += (mY-y)*0.1;
+        cameraToTargetDegY += (mX-x)*0.1;
+        lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
+        lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
+        // lookX = cameraDis * cos(45 * M_PI / 180.0);
+        // lookZ = cameraDis * cos(45 * M_PI / 180.0);
+        lookY += (y - mY) * 10.0;
     }
     
+    if (mButton == GLUT_LEFT_BUTTON) {
+        // 左ドラッグでカメラをズーム
+        camX +=  (mY-y)*20*cameraVecNorm.x;  //マウス横方向→水平角
+        camY +=  (mY-y)*20*cameraVecNorm.y;  //マウス縦方向→垂直角
+        camZ +=  (mY-y)*20*cameraVecNorm.z;  //マウス縦方向→垂直角
+    }
     //マウス座標をグローバル変数に保存
     mX = x; mY = y;
 }
@@ -422,8 +457,12 @@ void keyboard(unsigned char key, int x, int y)
         case 'a':
             NormalView = !NormalView;
             break;
-        case 'q':  //[q]キー
-        
+        case 't':
+            testD += 1;
+            break;
+        case 'g':
+            testD -= 1;
+             break;
         case 'Q':  //[Q]キー
             exit(0);  //プロセス終了
             break;
@@ -438,8 +477,6 @@ void keyboard(unsigned char key, int x, int y)
             break;
     }
 }
-
-
 
 void setrundum(int i,int j){
     for (int i = 0; i < rows; i++) {

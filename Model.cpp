@@ -113,7 +113,6 @@ void Model::ProcessMesh(aiMesh* mesh)
             vertex.ny = 1.0f;
             vertex.nz = 0.0f;
         }
-
         if (mesh->HasTextureCoords(0))
         {
             vertex.u = mesh->mTextureCoords[0][i].x;
