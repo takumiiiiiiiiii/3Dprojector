@@ -11,15 +11,27 @@ void initGL()
     //ウィンドウ生成
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
     glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
-    glutCreateWindow("CG Final");  //ウィンドウ生成
+     int windowId = glutCreateWindow("CG Final");
+    std::cout << "windowId: " << windowId << std::endl;
 
-    // モデル読み込み
-    // テクスチャをOpenGLへ登録するため、ウィンドウ生成後に読み込む
-    if (!model.Load("Jusmin_Lowpoly.obj"))
-    {
-        std::cerr << "モデルの読み込みに失敗しました" << std::endl;
-        exit(1);
+    const GLubyte* version = glGetString(GL_VERSION);
+
+    if (version == nullptr) {
+        std::cout << "GL_VERSION is NULL" << std::endl;
+    } else {
+        std::cout << "GL_VERSION: " << reinterpret_cast<const char*>(version) << std::endl;
     }
+//     glutCreateWindow("CG Final");  //ウィンドウ生成
+// std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
+
+    // // モデル読み込み
+    // // テクスチャをOpenGLへ登録するため、ウィンドウ生成後に読み込む
+    // if (!model.Load("Jusmin_Lowpoly.obj"))
+    // {
+    //     std::cerr << "モデルの読み込みに失敗しました" << std::endl;
+    //     exit(1);
+    // }
+    //キューブディスペンサーの初期化
     
     //コールバック関数指定
     glutDisplayFunc(display);  //ディスプレイコールバック関数（"display"）
@@ -93,6 +105,45 @@ void initGL()
             textureImage.data
         );
     }
+
+    glGenTextures(1, &leftTex);
+    glBindTexture(GL_TEXTURE_2D, leftTex);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        winW / 2,
+        winH,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    glGenTextures(1, &rightTex);
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        winW / 2,
+        winH,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    warpInitialized = true;
+
 }
 
 //ディスプレイコールバック関数
@@ -101,9 +152,58 @@ void display()
     initView(true);
     // オブジェクト描画
     dispobj();
+    //テクスチャ
+    glBindTexture(GL_TEXTURE_2D, leftTex);
+    glCopyTexSubImage2D(
+        GL_TEXTURE_2D,
+        0,
+        0,
+        0,
+        0,
+        0,
+        winW/2,
+        winH
+    );
     initView(false);
     // オブジェクト描画
     dispobj();
+    initView(false);
+    dispobj();
+    //テクスチャ
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+
+    glCopyTexSubImage2D(
+        GL_TEXTURE_2D,
+        0,
+        0,
+        0,
+        winW/2,
+        0,
+        winW/2,
+        winH
+    );
+    GLenum err = glGetError();
+
+std::cout << err << std::endl;
+        //     unsigned char pixel[4];
+        // glReadPixels(
+        //     winW/4,
+        //     winH/2,
+        //     1,
+        //     1,
+        //     GL_RGBA,
+        //     GL_UNSIGNED_BYTE,
+        //     pixel
+        // );
+
+        // std::cout
+        // << (int)pixel[0] << " "
+        // << (int)pixel[1] << " "
+        // << (int)pixel[2] << std::endl;
+    if(!NormalView){
+    DrawWarpedTextures();
+    }
+
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
@@ -142,6 +242,7 @@ void initView(bool isLeftEye) {
             lookX+camX, lookY+ camY, lookZ+camZ,
             0.0, 1.0, 0.0
         );
+        
         //  gluLookAt(
         //     e.x  +camX , e.y + camY, e.z + camZ,
         //     camX+e.x, camY+e.y, camZ+e.z,
@@ -167,13 +268,22 @@ void initView(bool isLeftEye) {
     //     40.0,
     //     aspect,
     //     1.0,
+    
     //     10000.0
     // );
+    // glFrustum(
+    //     -33.0/2.0, 33.0/2.0,
+    //     -97.0/4.0,97.0/4.0,
+    //     50, 10000.0
+    // );
     glFrustum(
-        -33.0/2.0, 33.0/2.0,
-        -97.0/4.0,97.0/4.0,
-        50, 10000.0
-    );
+    -16.5,
+     16.5,
+    -24.25 ,
+     24.25 ,
+     50.0,
+     10000.0
+);
     // glFrustum(
     //     -aspect, aspect,
     //     -1.0, 1.0,
@@ -197,6 +307,7 @@ void initView(bool isLeftEye) {
             1, 0, 0.0
         );
     }
+       // std::cout << glGetString(GL_VERSION)<< std::endl;
     // if (isLeftEye) {
     //     gluLookAt(
     //         eyeOffset, 6305,4290,
@@ -239,6 +350,8 @@ void dispobj(){
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);  //光源配置
     GLfloat lightPos1[] = {-500.0, 2000.0, -500.0, 1.0};  //光源座標(点光源)
     glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
+    GLfloat lightPos3[] = {0, 2000.0, -600, 1.0};  //光源座標(点光源)
+    glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
 
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
@@ -263,12 +376,12 @@ void dispobj(){
 
     // 中心に寄せる
     setColor(0.5, 0.0, 0.5, 1.0);
-    glTranslatef(400,
+    glTranslatef(0,
                  0,
-                 -2100);
-    // penguin_animation();
-    // penguin(0,0);
-    // model.Draw();
+                 0);
+    penguin_animation();
+    //penguin(0,0);
+    model.Draw();
     glPopMatrix();
 
     //3Dモデル
@@ -281,10 +394,20 @@ void dispobj(){
     setColor(1.0, 1.0, 1.0, 1.0);
     //model.Draw();
     glPopMatrix();
-    if(placedCubes.size()>0){
+    glPushMatrix();
+    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+    glTranslated(0,0,0);
+    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+    glScaled(2000,1000,1000);
+    setColor(1.0, 1.0, 1.0, 1.0);
+    glutSolidCube(1);
+    glPopMatrix();
+    if(cubeDispenser.GetPlacedCubes().size()>0){
         // モデル描画
-        for(auto cube : placedCubes){
+        for(auto cube : cubeDispenser.GetPlacedCubes()){
             glPushMatrix();
+            Color curC = cubeDispenser.GetCurrCubeColor();
+            setColor(cube.color.r,cube.color.g,cube.color.b,1.0);
             glTranslated(cube.gx * GRID_SIZE,cube.gy * GRID_SIZE+GRID_SIZE/2,cube.gz * GRID_SIZE);
             glutSolidCube(GRID_SIZE);
             glPopMatrix();
@@ -298,6 +421,109 @@ void dispobj(){
     glPopMatrix();
 }
 
+void DrawWarpedTextures()
+{
+        int viewW = static_cast<int>(winW * rDisp / 2.0);
+    int viewH = static_cast<int>(winH * rDisp);
+     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+
+      viewW = static_cast<int>(winW * rDisp);
+        viewH = static_cast<int>(winH * rDisp);
+        aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, viewW,viewH);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        // glFrustum(
+        // -aspect, aspect,
+        // -1.0, 1.0,
+        // 1.0, 10000.0
+        // );
+        gluPerspective(
+            40.0,
+            aspect,
+            1.0,
+            10000.0
+        );
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(
+            camX ,camY,camZ,
+            lookX+camX, lookY+ camY, lookZ+camZ,
+            0.0, 1.0, 0.0
+        );
+
+
+
+    glClear(
+        GL_COLOR_BUFFER_BIT |
+        GL_DEPTH_BUFFER_BIT
+    );
+
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    glOrtho(
+        -1,1,
+        -1,1,
+        -1,1
+    );
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glEnable(GL_TEXTURE_2D);
+
+    float topScale = 28.0f / 21.0f;
+    float topHalf = topScale;
+    double widthfix = 0.15f;//台形補正
+
+    glBindTexture(GL_TEXTURE_2D, leftTex);
+//左眼用の描画
+    glBegin(GL_QUADS);
+
+    glTexCoord2f(0,0);
+    glVertex2f(-1.0f,-1.0f);
+
+    glTexCoord2f(1,0);
+    glVertex2f(0.0f,-1.0f+widthfix+testB);
+
+    glTexCoord2f(1,1);
+    // glVertex2f(topHalf*0.5f,1.0f);
+    glVertex2f(0.0f,1.0f-widthfix+testB);
+    glTexCoord2f(0,1);
+    glVertex2f(-1.0f,1.0f);
+    // glVertex2f(-topHalf*0.5f,1.0f);
+
+    glEnd();
+
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+//右目用の描画
+    glBegin(GL_QUADS);
+
+    glTexCoord2f(0,0);
+    glVertex2f(0.0f,-1.0f);
+
+    glTexCoord2f(1,0);
+  
+    glVertex2f(1.0f,-1.0f+widthfix+testB);
+
+    glTexCoord2f(1,1);
+    // glVertex2f(topHalf*0.5f,1.0f);
+    glVertex2f(1.0f,1.0f-widthfix+testB);
+    glTexCoord2f(0,1);
+    glVertex2f(0.0f,1.0f);
+
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+}
 
 //リサイズコールバック関数
 void reshape(int w, int h)
@@ -312,6 +538,8 @@ void reshape(int w, int h)
     gluPerspective(40.0, (double)viewW/(double)viewH, 1.0, 10000.0);  //投影変換行列生成
     
     winW = w; winH = h;  //ウィンドウサイズをグローバル変数に格納
+
+    
 }
 
 //タイマーコールバック関数
@@ -329,7 +557,6 @@ void timer(int value)
 
 void mouseMove(int x,int y){
     Ray ray =screen2ray(x,y);
-
     Vec_3D hit;
     if(intersectFloor(ray,&hit)){
         // グリッドの中心にスナップするための調整
@@ -352,32 +579,17 @@ void mouseMove(int x,int y){
         pointingCell.gy = static_cast<int>(hit.y / GRID_SIZE);
         pointingCell.gz = static_cast<int>(hit.z / GRID_SIZE);
     }
-    for(auto cube :placedCubes){
+    for(auto cube :cubeDispenser.GetPlacedCubes()){
         double t;
         Vec_3D hit;
         Vec_3D normal;
         Ray ray = screen2ray(x,y);
         if(intersectCubeCell(ray,cube,GRID_SIZE,&t,&hit,&normal)){
-            // std::cout << "Hit Point: (" << hit.x << ", " << hit.y << ", " << hit.z << ")" << std::endl;
-            // std::cout << "Hit Normal: (" << normal.x << ", " << normal.y << ", " << normal.z << ")" << std::endl;
-            // グリッドの中心にスナップするための調整
-            // if(hit.x < 0){
-            //     hit.x -= static_cast<int>(GRID_SIZE/2);
-            // } else {
-            //     hit.x += static_cast<int>(GRID_SIZE/2);
-            // }
-            // if(hit.z < 0){
-            //     hit.z -= static_cast<int>(GRID_SIZE/2);
-            // } else {
-            //     hit.z += static_cast<int>(GRID_SIZE/2);
-            // }
+        
             pointingCell = cube;
             pointingCell.gx += static_cast<int>(normal.x);
             pointingCell.gy += static_cast<int>(normal.y);
             pointingCell.gz += static_cast<int>(normal.z);
-            //pointingCell.gx += static_cast<int>(normal.x);
-            // std::cout << "Hit Point: (" << hit.x << ", " << hit.y << ", " << hit.z << ")" << std::endl;
-            // std::cout << "Pointing Cell: (" << pointingCell.gx << ", " << pointingCell.gy << ", " << pointingCell.gz << ")" << std::endl;
         }
     }
 }
@@ -393,7 +605,8 @@ void mouse(int button, int state, int x, int y)
     Vec_3D cameraVecNorm = vectorNormalize(cameraVec);
     // //大きさ
     if (mButton==GLUT_LEFT_BUTTON && mState==GLUT_DOWN) { //マウスボタンを押したとき
-        placedCubes.push_back(pointingCell);
+        pointingCell.color = cubeDispenser.GetCurrCubeColor();
+        cubeDispenser.AddCube(pointingCell);
 	}
     std::cout << "Mouse Button: " << mButton << ", State: " << mState << ", X: " << mX << ", Y: " << mY << std::endl;
     
@@ -407,9 +620,14 @@ void motion(int x, int y)
     Vec_3D cameraVec = diffVec(forward,point);
     Vec_3D cameraVecNorm = vectorNormalize(cameraVec);
     //中ドラッグで視点を移動
+   
     if(mButton==GLUT_MIDDLE_BUTTON){
-       
-        cameraVec = vectorNormalize(cameraVec);
+         if(isZooming){
+            camX +=  (mY-y)*20*cameraVecNorm.x;  //マウス横方向→水平角
+            camY +=  (mY-y)*20*cameraVecNorm.y;  //マウス縦方向→垂直角
+            camZ +=  (mY-y)*20*cameraVecNorm.z;  //マウス縦方向→垂直角
+        }else{
+            cameraVec = vectorNormalize(cameraVec);
         //カメラの右方向ベクトルを計算
         Vec_3D right = crossProduct(cameraVec, makeVec(0,1,0));
         right = vectorNormalize(right);
@@ -417,10 +635,8 @@ void motion(int x, int y)
         camX += (mX-x)*20*right.x;  //マウス横方向→水平角
         camY -= (mY-y)*20;  //マウス縦方向→垂直角
         camZ += (mX-x)*20*right.z;  //マウス縦方向→垂直角
-        
+        }
     }
-
-
     //double cameraDis = vectorLen(cameraVec);
     if (mButton == GLUT_RIGHT_BUTTON) {
             // //右ドラッグでカメラを回転
@@ -435,33 +651,73 @@ void motion(int x, int y)
     
     if (mButton == GLUT_LEFT_BUTTON) {
         // 左ドラッグでカメラをズーム
-        camX +=  (mY-y)*20*cameraVecNorm.x;  //マウス横方向→水平角
-        camY +=  (mY-y)*20*cameraVecNorm.y;  //マウス縦方向→垂直角
-        camZ +=  (mY-y)*20*cameraVecNorm.z;  //マウス縦方向→垂直角
+       
     }
     //マウス座標をグローバル変数に保存
     mX = x; mY = y;
 }
 
+void mouseWheel(int wheel,int direction,int x,int y){
+    Vec_3D forward = makeVec(lookX+camX, lookY+ camY, lookZ+camZ);
+    Vec_3D point = makeVec(camX ,camY, camZ);
+    Vec_3D cameraVec = diffVec(forward,point);
+    Vec_3D cameraVecNorm = vectorNormalize(cameraVec);
+    //マウスホイールでカメラをズーム
+    camX +=  direction*20*cameraVecNorm.x;  //マウス横方向→水平角
+    camY +=  direction*20*cameraVecNorm.y;  //マウス縦方向→垂直角
+    camZ +=  direction*20*cameraVecNorm.z;  //マウス縦方向→垂直角
+}
+
 //キーボードコールバック関数
 void keyboard(unsigned char key, int x, int y)
 {
+    Color col;
     switch (key) {
         case 27:  //[ESC]キー
+            exit(0);  //プロセス終了
+            break;
+        case 'r':
+            col = {1.0,0.0,0.0};
+            cubeDispenser.ChangeCurrColor(col);
+            break;
+        case 'g':
+            col = {0.0,1.0,0.0};
+            cubeDispenser.ChangeCurrColor(col);
+            break;
+        case 'b':
+            col = {0.0,0.0,1.0};
+            cubeDispenser.ChangeCurrColor(col);
+            break;
+        case 'm':
+            isZooming = !isZooming;
+            break;
         case 'w':
             eyeOffset += 10.0;
             break;
         case 's':
-            eyeOffset -= 10.0;
+            if(NormalView == false){
+                eyeOffset -= 10.0;
+            }else{
+                cubeDispenser.SaveToFile("placed_cubes.txt");
+            }
+            break;
+        case 'l':
+            cubeDispenser.LoadFromFile("placed_cubes.txt");
             break;
         case 'a':
             NormalView = !NormalView;
             break;
-        case 't':
+        case 'y':
             testD += 1;
             break;
-        case 'g':
+        case 'h':
             testD -= 1;
+             break;
+        case 'u':
+            testB += 0.05;
+            break;
+        case 'j':
+            testB -= 0.05;
              break;
         case 'Q':  //[Q]キー
             exit(0);  //プロセス終了
@@ -472,7 +728,19 @@ void keyboard(unsigned char key, int x, int y)
         case '-':
             eDist += 100.0;
             break;
-
+        // case GLUT_KEY_UP:
+        //     std::cout << "↑" << std::endl;
+            
+        //     break;
+        // case GLUT_KEY_DOWN:
+        //     std::cout << "↓" << std::endl;
+        //     break;
+        // case GLUT_KEY_LEFT:
+        //     std::cout << "←" << std::endl;
+        //     break;
+        // case GLUT_KEY_RIGHT:
+        //     std::cout << "→" << std::endl;
+            break;
         default:
             break;
     }

@@ -26,6 +26,8 @@ extern double camX;
 extern double camY;
 extern double camZ;
 extern double testD;
+extern double testB;
+extern bool isZooming;
 // 視点極座標から直交座標へ変換
 
 // カメラからターゲットへの角度
@@ -122,5 +124,15 @@ extern Model model;
 
 //キューブ配置
 //キューブの大きさ
-extern std::vector<CubeCell> placedCubes; // 配置されたキューブの情報を格納するベクター
+// extern std::vector<CubeCell> placedCubes; // 配置されたキューブの情報を格納するベクター
+extern CubeDispenser cubeDispenser;
 extern CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数
+
+//プレイヤー
+extern Vec_3D player;
+
+//テクスチャ
+extern GLuint leftTex ;
+extern GLuint rightTex;
+
+extern bool warpInitialized;

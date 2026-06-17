@@ -16,6 +16,7 @@ void dispobj();
 void reshape(int w, int h);
 void timer(int value);
 void mouseMove(int x, int y);
+void DrawWarpedTextures();
 void mouse(int button, int state, int x, int y);
 void motion(int x, int y);
 void mouseWheel(int wheel,int direction,int x,int y);
