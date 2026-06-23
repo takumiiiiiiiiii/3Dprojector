@@ -44,7 +44,7 @@ void initGL()
     glutKeyboardFunc(keyboard);  //キーボードコールバック関数
     
     //各種設定
-    glClearColor(0.0,0,0, 1.0);  //ウィンドウクリア色の指定（RGBA値）
+    glClearColor(0.0,0.0,0.0, 1.0);  //ウィンドウクリア色の指定（RGBA値）
     glEnable(GL_DEPTH_TEST);  //デプスバッファ有効化
     glEnable(GL_NORMALIZE);  //ベクトル正規化有効化
     glEnable(GL_BLEND);  //ブレンディング有効化
@@ -207,7 +207,7 @@ std::cout << err << std::endl;
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    int viewW = static_cast<int>(winW * rDisp / 2.0);
+    int viewW = static_cast<int>(winW * rDisp/2);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
@@ -253,9 +253,9 @@ void initView(bool isLeftEye) {
     
 
     if (isLeftEye) {
-        glViewport(0,  -viewH/2, viewW, viewH*2);
+        glViewport(0, 0, viewW, viewH);
     } else {
-        glViewport(viewW,-viewH/2, viewW, viewH*2);
+        glViewport(viewW,0, viewW, viewH);
     }
     if(isLeftEye){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -264,83 +264,38 @@ void initView(bool isLeftEye) {
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    // gluPerspective(
-    //     40.0,
-    //     aspect,
-    //     1.0,
-    
-    //     10000.0
-    // );
-    // glFrustum(
-    //     -33.0/2.0, 33.0/2.0,
-    //     -97.0/4.0,97.0/4.0,
-    //     50, 10000.0
-    // );
+    double fruH = 33.0f/4.0f;
+    double fruW = 23.0f/4.0f;
+    double winDis = 80.0f/2.0f;
     glFrustum(
-    -16.5,
-     16.5,
-    -24.25 ,
-     24.25 ,
-     50.0,
-     10000.0
-);
-    // glFrustum(
-    //     -aspect, aspect,
-    //     -1.0, 1.0,
-    //     1.0, 10000.0
-    // );
+     -fruH,
+     fruH,
+     fruW,
+     -fruW,
+     winDis,
+     1000.0
+    );
+
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    double LookY = 85;
+    double LookZ = 53;
      if (isLeftEye) {
         gluLookAt(
-            eyeOffset, 97*testD,66*testD,
-            0, 0.0, 0.0,
+            eyeOffset, LookY+testD,LookZ,
+            eyeOffset, 0.0, 0.0,
             1, 0, 0.0
         );
     } else {
         gluLookAt(
-            -eyeOffset, 97*testD, 66*testD,
-            0, 0.0,0.0,
+            -eyeOffset, LookY+testD, LookZ,
+            -eyeOffset, 0.0,0.0,
             1, 0, 0.0
         );
     }
-       // std::cout << glGetString(GL_VERSION)<< std::endl;
-    // if (isLeftEye) {
-    //     gluLookAt(
-    //         eyeOffset, 6305,4290,
-    //         0, 0.0, 0.0,
-    //         1,0,0
-    //     );
-    // } else {
-    //     gluLookAt(
-    //         -eyeOffset,6305,4290,
-    //         0, 0.0,0.0,
-    //         1,0,0
-    //     );
-    // }
-
-    // if (isLeftEye) {
-    // std::cout << "camra pos: " << e.x + camX << ", " << e.y + camY << ", " << e.z + camZ << std::endl;
-    //     gluLookAt(
-    //         e.x  +camX , e.y + camY, e.z + camZ,
-    //         0.0, 0.0, 0.0,
-    //         0, 1, 0.0
-    //     );
-    // } else {
-    //     gluLookAt(
-    //         e.x  +camX , e.y + camY, e.z + camZ,
-    //         0.0, 0.0,0.0,
-    //         0.0, 1, 0.0
-    //     );
-    // }
-    // gluLookAt(
-    //         e.x  +camX , e.y + camY, e.z + camZ,
-    //         lookX+camX, lookY+ camY, camZ,
-    //         -1.0, 0.0, 0.0
-    //     );
     
 }
 
@@ -355,7 +310,7 @@ void dispobj(){
 
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
-    // draw_floor(1,1,0,0,0);
+    draw_floor(1,1,0,0,0);
 
     //ボクセル
     glPushMatrix();
@@ -383,7 +338,6 @@ void dispobj(){
     //penguin(0,0);
     model.Draw();
     glPopMatrix();
-
     //3Dモデル
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
@@ -393,12 +347,14 @@ void dispobj(){
 
     setColor(1.0, 1.0, 1.0, 1.0);
     //model.Draw();
+    
     glPopMatrix();
+    //目標物体
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
-    glTranslated(0,0,0);
+    glTranslated(0,5,0);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(2000,1000,1000);
+    glScaled(20,10,10);
     setColor(1.0, 1.0, 1.0, 1.0);
     glutSolidCube(1);
     glPopMatrix();
@@ -452,9 +408,6 @@ void DrawWarpedTextures()
             lookX+camX, lookY+ camY, lookZ+camZ,
             0.0, 1.0, 0.0
         );
-
-
-
     glClear(
         GL_COLOR_BUFFER_BIT |
         GL_DEPTH_BUFFER_BIT
@@ -477,9 +430,11 @@ void DrawWarpedTextures()
 
     glEnable(GL_TEXTURE_2D);
 
-    float topScale = 28.0f / 21.0f;
-    float topHalf = topScale;
+
     double widthfix = 0.15f;//台形補正
+    double Xfix = -0.1f;
+    // double widthfix = 0.0f;//台形補正
+    //double Xfix = 0.0f;
 
     glBindTexture(GL_TEXTURE_2D, leftTex);
 //左眼用の描画
@@ -489,11 +444,11 @@ void DrawWarpedTextures()
     glVertex2f(-1.0f,-1.0f);
 
     glTexCoord2f(1,0);
-    glVertex2f(0.0f,-1.0f+widthfix+testB);
+    glVertex2f(0.0f,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
     // glVertex2f(topHalf*0.5f,1.0f);
-    glVertex2f(0.0f,1.0f-widthfix+testB);
+    glVertex2f(0.0f,1.0f-widthfix+Xfix);
     glTexCoord2f(0,1);
     glVertex2f(-1.0f,1.0f);
     // glVertex2f(-topHalf*0.5f,1.0f);
@@ -509,11 +464,11 @@ void DrawWarpedTextures()
 
     glTexCoord2f(1,0);
   
-    glVertex2f(1.0f,-1.0f+widthfix+testB);
+    glVertex2f(1.0f,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
     // glVertex2f(topHalf*0.5f,1.0f);
-    glVertex2f(1.0f,1.0f-widthfix+testB);
+    glVertex2f(1.0f,1.0f-widthfix+Xfix);
     glTexCoord2f(0,1);
     glVertex2f(0.0f,1.0f);
 
@@ -708,16 +663,17 @@ void keyboard(unsigned char key, int x, int y)
             NormalView = !NormalView;
             break;
         case 'y':
-            testD += 1;
-            break;
-        case 'h':
-            testD -= 1;
-             break;
-        case 'u':
+
             testB += 0.05;
             break;
-        case 'j':
+        case 'h':
             testB -= 0.05;
+             break;
+        case 'u':
+            testD += 1;
+            break;
+        case 'j':
+            testD -= 1;
              break;
         case 'Q':  //[Q]キー
             exit(0);  //プロセス終了
