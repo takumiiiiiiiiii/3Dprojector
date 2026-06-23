@@ -224,17 +224,17 @@ void initView(bool isLeftEye) {
         glViewport(0, 0, viewW,viewH);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        // glFrustum(
-        // -aspect, aspect,
-        // -1.0, 1.0,
-        // 1.0, 10000.0
-        // );
-        gluPerspective(
-            40.0,
-            aspect,
-            1.0,
-            10000.0
+        glFrustum(
+        -aspect, aspect,
+        -1.0, 1.0,
+        1.0, 10000.0
         );
+        // gluPerspective(
+        //     40.0,
+        //     aspect,
+        //     1.0,
+        //     10000.0
+        // );
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         gluLookAt(
@@ -253,9 +253,9 @@ void initView(bool isLeftEye) {
     
 
     if (isLeftEye) {
-        glViewport(0, 0, viewW, viewH);
+        glViewport(viewW/4.0f, 0, viewW/2.0f, viewH);
     } else {
-        glViewport(viewW,0, viewW, viewH);
+        glViewport(viewW+viewW/4.0f,0, viewW/2.0f, viewH);
     }
     if(isLeftEye){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -266,33 +266,40 @@ void initView(bool isLeftEye) {
     glLoadIdentity();
     double fruH = 33.0f/4.0f;
     double fruW = 23.0f/4.0f;
-    double winDis = 80.0f/2.0f;
-    glFrustum(
-     -fruH,
-     fruH,
-     fruW,
-     -fruW,
-     winDis,
-     1000.0
-    );
-
+    double winDis = 90.0f/2.0f;
+    // glFrustum(
+    //  -fruW, //left
+    //  fruW+testD, //Right
+    //  fruH,//bottom
+    //  -fruH, //top
+    //  winDis,
+    //  1000.0
+    // );
+     gluPerspective(
+            40.0,
+            aspect,
+            1.0,
+            10000.0
+        );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    double LookY = 85;
-    double LookZ = 53;
+    double LookY = 0;
+    double LookZ = 0;
+    double angle = 45.0f;
+    Vec_3D viewDir = {0.0f, -sin(angle), -cos(angle)};
      if (isLeftEye) {
         gluLookAt(
-            eyeOffset, LookY+testD,LookZ,
-            eyeOffset, 0.0, 0.0,
+            eyeOffset, LookY,LookZ,
+            eyeOffset+viewDir.x, viewDir.y, viewDir.z,
             1, 0, 0.0
         );
     } else {
         gluLookAt(
-            -eyeOffset, LookY+testD, LookZ,
-            -eyeOffset, 0.0,0.0,
+            -eyeOffset, LookY, LookZ,
+            -eyeOffset+viewDir.x, viewDir.y,viewDir.z,
             1, 0, 0.0
         );
     }
@@ -319,8 +326,8 @@ void dispobj(){
     float objectSize = VOXEL_SIZE * SPACING;
     setColor(0.5, 0.0, 0.5, 1.0);
     glTranslatef(-objectSize / 2.0f,
-                 0,
-                 -objectSize / 2.0f);
+                0,
+                -objectSize / 2.0f);
     // DrawVoxelObject(VOXEL_SIZE);
     // penguin(0,0);
     // model.Draw();
@@ -332,8 +339,8 @@ void dispobj(){
     // 中心に寄せる
     setColor(0.5, 0.0, 0.5, 1.0);
     glTranslatef(0,
-                 0,
-                 0);
+                0,
+                0);
     penguin_animation();
     //penguin(0,0);
     model.Draw();
@@ -350,9 +357,11 @@ void dispobj(){
     
     glPopMatrix();
     //目標物体
+    double LookY = 90;
+    double LookZ = 60;
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
-    glTranslated(0,5,0);
+    glTranslated(0,5-LookY,-LookZ);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(20,10,10);
     setColor(1.0, 1.0, 1.0, 1.0);
@@ -375,6 +384,8 @@ void dispobj(){
         glScaled(1.0,1.0,1.0);
         glutSolidCube(GRID_SIZE);
     glPopMatrix();
+
+
 }
 
 void DrawWarpedTextures()
