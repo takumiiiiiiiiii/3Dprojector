@@ -4,10 +4,25 @@ Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
 //視点極座標
 double eDist, eDegX, eDegY;
+double camX=0, camY=0, camZ=0;
+double testD = 0;
+double testB = 0;
+double cameraToTargetDegX = 0;
+double cameraToTargetDegY = 0;
+double cameraLength = 10000;
+double lookX=cameraLength, lookY=0, lookZ=0;
+//カメラをズームするかそれとも並行移動するかのフラグ
+bool isZooming = false;
+Vec_3D e; // 視点の位置
 // ウィンドウサイズ
-int winW, winH;
+int winW=1200, winH=800;
 //マウス情報
 int mButton, mState, mX, mY;
+//現実世界の情報
+//モニターの頂点
+Vec_3D pa = {-0.3, 0.0, 0.0};
+Vec_3D pb = { 0.3, 0.0, 0.0};
+Vec_3D pc = {-0.3, 0.4, 0.0};
 //フレームレート
 double f = 30.0;
 //オブジェクトのグローバル変数
@@ -16,7 +31,7 @@ double height_cy = 80;
 double rad_cy = 30;
 double dis = 1200;
 //アニメーション
-double leg_range = 50;
+double leg_range = 1900;
 double legL_anima = 0;
 double legR_anima = 0;
 double legLR_flag = false;
@@ -64,6 +79,13 @@ const int rows = 5;
 const int cols = 50;
 int array[5][50];
 double rDisp=1.0;
+
+//立体視変数
+double eyeOffset = 0;//左右の視差量
+
+//描画モード
+bool NormalView = true;
+
 // ボクセルの存在情報
 const float SPACING = 50.0f;
 
@@ -73,3 +95,18 @@ bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
 
 //モデルの初期化
 Model model;
+Color color = {0.0,1.0,0.0};
+//キューブの配置
+CubeDispenser cubeDispenser = CubeDispenser(color); // CubeDispenserのインスタンスを作成
+
+
+
+CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数
+
+//プレイヤー
+Vec_3D player;
+
+GLuint leftTex = 0;
+GLuint rightTex = 0;
+
+bool warpInitialized = false;

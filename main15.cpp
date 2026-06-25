@@ -1,7 +1,4 @@
-//g++ -mmacosx-version-min=26.0 -O3 main15.cpp GLApp.cpp Globals.cpp Objects.cpp Shape.cpp Vec3D.cpp Voxcel.cpp Model.cpp \
-  -std=c++11 -framework OpenGL -framework GLUT \
-  `pkg-config --cflags --libs opencv4 assimp` \
-  -Wno-deprecated
+//g++ -O3 CubeDispenser.cpp main15.cpp GLApp.cpp Globals.cpp Objects.cpp Ray.cpp Shape.cpp Vec3D.cpp Voxcel.cpp Model.cpp -std=c++11 -framework OpenGL -framework GLUT `pkg-config --cflags --libs opencv4 assimp` -Wno-deprecated
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -23,8 +20,6 @@
 #define OSTS 10
 
 //関数名の宣言
-
-
 //メイン関数
 int main(int argc, char *argv[])
 {

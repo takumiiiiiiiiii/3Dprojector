@@ -1,6 +1,7 @@
 #pragma once
 #include "Vec3D.h"
 #include "Model.h"
+#include "CubeDispenser.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -9,14 +10,35 @@
 #define TILE 50
 #define OSTS 10
 #define VOXEL_SIZE 20
+#define GRID_SIZE 500.0f
 
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
 
+//カメラの位置と向き
 extern double eDist;
 extern double eDegX;
 extern double eDegY;
+extern double lookX;
+extern double lookY;
+extern double lookZ;
+extern double camX;
+extern double camY;
+extern double camZ;
+extern double testD;
+extern double testB;
+extern bool isZooming;
+// 視点極座標から直交座標へ変換
 
+// カメラからターゲットへの角度
+extern double cameraToTargetDegX;
+extern double cameraToTargetDegY;
+extern double cameraLength;
+
+//視点の位置
+extern Vec_3D e;
+
+//ウィンドウサイズ
 extern int winW;
 extern int winH;
 
@@ -82,6 +104,15 @@ extern int array[5][50];
 
 extern double rDisp;
 
+//描画モード
+extern bool NormalView;
+//実際の描画サイズ
+extern double realDisp;
+extern double disDisp;
+
+//立体視変数
+extern double eyeOffset;//左右の視差量
+
 //僕せる
 extern const float SPACING;
 
@@ -90,3 +121,18 @@ extern bool voxels[VOXEL_SIZE][VOXEL_SIZE][VOXEL_SIZE];
 
 //3Dモデル
 extern Model model;
+
+//キューブ配置
+//キューブの大きさ
+// extern std::vector<CubeCell> placedCubes; // 配置されたキューブの情報を格納するベクター
+extern CubeDispenser cubeDispenser;
+extern CubeCell pointingCell; // 現在ポイントしているセルの情報を格納する変数
+
+//プレイヤー
+extern Vec_3D player;
+
+//テクスチャ
+extern GLuint leftTex ;
+extern GLuint rightTex;
+
+extern bool warpInitialized;
