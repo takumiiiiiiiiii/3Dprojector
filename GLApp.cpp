@@ -116,7 +116,7 @@ void initGL()
         GL_TEXTURE_2D,
         0,
         GL_RGBA,
-        winW / 2,
+        winW,
         winH,
         0,
         GL_RGBA,
@@ -161,14 +161,14 @@ void display()
         0,
         0,
         0,
-        winW/2,
+        winW,
         winH
     );
-    initView(false);
-    // オブジェクト描画
-    dispobj();
-    initView(false);
-    dispobj();
+    // initView(false);
+    // // オブジェクト描画
+    // dispobj();
+    // initView(false);
+    // dispobj();
     //テクスチャ
     glBindTexture(GL_TEXTURE_2D, rightTex);
 
@@ -201,13 +201,14 @@ std::cout << err << std::endl;
         // << (int)pixel[1] << " "
         // << (int)pixel[2] << std::endl;
     if(!NormalView){
-    DrawWarpedTextures();
+     DrawWarpedTextures();
     }
 
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    int viewW = static_cast<int>(winW * rDisp/2);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
@@ -250,16 +251,16 @@ void initView(bool isLeftEye) {
         // );
         return;
     }
-    
+    glViewport(0, 0, viewW, viewH);
 
-    if (isLeftEye) {
-        glViewport(viewW/4.0f, 0, viewW/2.0f, viewH);
-    } else {
-        glViewport(viewW+viewW/4.0f,0, viewW/2.0f, viewH);
-    }
-    if(isLeftEye){
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
+    // if (isLeftEye) {
+    //     glViewport(viewW, 0, viewW/2.0f, viewH);
+    // } else {
+    //     glViewport(viewW+viewW/4.0f,0, viewW/2.0f, viewH);
+    // }
+    // if(isLeftEye){
+    //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // }
 
     // 投影変換
     glMatrixMode(GL_PROJECTION);
@@ -267,20 +268,41 @@ void initView(bool isLeftEye) {
     double fruH = 33.0f/4.0f;
     double fruW = 23.0f/4.0f;
     double winDis = 90.0f/2.0f;
+    // パラメータ定義
+    float W = 22.0f;      // モニターの横幅 (メートル換算など)
+    float H = 50.0f;      // モニターの縦幅
+    float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
+    float nearPlane = 90.0f/2.0f;
+    float farPlane = 1000.0f;
+
+    // 1. プロジェクション行列 (Frustum) の計算
+    float left   = -(W / 2.0f) * (nearPlane / dd);
+    float right  =  (W / 2.0f) * (nearPlane / dd);
+    float bottom = -(H / 2.0f) * (nearPlane / dd);
+    float top    =  (H / 2.0f) * (nearPlane / dd);
+
+     glFrustum(
+     bottom+testD, //left
+     top+testD, //Right
+     left,//bottom
+     right, //top
+     nearPlane,
+     farPlane
+    );
     // glFrustum(
     //  -fruW, //left
-    //  fruW+testD, //Right
-    //  fruH,//bottom
-    //  -fruH, //top
+    //  fruW, //Right
+    //  -fruH,//bottom
+    //  fruH, //top
     //  winDis,
     //  1000.0
     // );
-     gluPerspective(
-            40.0,
-            aspect,
-            1.0,
-            10000.0
-        );
+    //  gluPerspective(
+    //         40.0,
+    //         aspect,
+    //         1.0,
+    //         10000.0
+    //     );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
@@ -288,21 +310,36 @@ void initView(bool isLeftEye) {
 
     double LookY = 0;
     double LookZ = 0;
+    double LookYp = -90;
+    double LookZp = -68.64f;
     double angle = 45.0f;
     Vec_3D viewDir = {0.0f, -sin(angle), -cos(angle)};
-     if (isLeftEye) {
+    if (isLeftEye) {
         gluLookAt(
             eyeOffset, LookY,LookZ,
-            eyeOffset+viewDir.x, viewDir.y, viewDir.z,
-            1, 0, 0.0
+            eyeOffset, LookYp, LookZp,
+            1.0, 0.0, 0.0
         );
     } else {
         gluLookAt(
             -eyeOffset, LookY, LookZ,
-            -eyeOffset+viewDir.x, viewDir.y,viewDir.z,
-            1, 0, 0.0
+            -eyeOffset, LookYp,LookZp,
+            1.0, 0.0, 0.0
         );
     }
+    //  if (isLeftEye) {
+    //     gluLookAt(
+    //         eyeOffset, LookY,LookZ,
+    //         eyeOffset+viewDir.x, viewDir.y, viewDir.z,
+    //         1.0, 0.0, 0.0
+    //     );
+    // } else {
+    //     gluLookAt(
+    //         -eyeOffset, LookY, LookZ,
+    //         -eyeOffset+viewDir.x, viewDir.y,viewDir.z,
+    //         1.0, 0.0, 0.0
+    //     );
+    // }
     
 }
 
@@ -317,7 +354,7 @@ void dispobj(){
 
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
-    draw_floor(1,1,0,0,0);
+    
 
     //ボクセル
     glPushMatrix();
@@ -357,15 +394,25 @@ void dispobj(){
     
     glPopMatrix();
     //目標物体
-    double LookY = 90;
-    double LookZ = 60;
+    double LookY = 89;
+    double LookZ = 50;
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+
     glTranslated(0,5-LookY,-LookZ);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(20,10,10);
     setColor(1.0, 1.0, 1.0, 1.0);
     glutSolidCube(1);
+    glPopMatrix();
+    glPushMatrix();
+    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+
+    glTranslated(0,-LookY,-LookZ);
+    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+    glScaled(20,1,10);
+    setColor(0.0,1.0,0.0,1.0);
+    draw_floor(1,1,0,0,0);
     glPopMatrix();
     if(cubeDispenser.GetPlacedCubes().size()>0){
         // モデル描画
@@ -455,35 +502,35 @@ void DrawWarpedTextures()
     glVertex2f(-1.0f,-1.0f);
 
     glTexCoord2f(1,0);
-    glVertex2f(0.0f,-1.0f+widthfix+Xfix);
-
-    glTexCoord2f(1,1);
-    // glVertex2f(topHalf*0.5f,1.0f);
-    glVertex2f(0.0f,1.0f-widthfix+Xfix);
-    glTexCoord2f(0,1);
-    glVertex2f(-1.0f,1.0f);
-    // glVertex2f(-topHalf*0.5f,1.0f);
-
-    glEnd();
-
-    glBindTexture(GL_TEXTURE_2D, rightTex);
-//右目用の描画
-    glBegin(GL_QUADS);
-
-    glTexCoord2f(0,0);
-    glVertex2f(0.0f,-1.0f);
-
-    glTexCoord2f(1,0);
-  
     glVertex2f(1.0f,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
     // glVertex2f(topHalf*0.5f,1.0f);
     glVertex2f(1.0f,1.0f-widthfix+Xfix);
     glTexCoord2f(0,1);
-    glVertex2f(0.0f,1.0f);
+    glVertex2f(-1.0f,1.0f);
+    // glVertex2f(-topHalf*0.5f,1.0f);
 
     glEnd();
+
+//     glBindTexture(GL_TEXTURE_2D, rightTex);
+// //右目用の描画
+//     glBegin(GL_QUADS);
+
+//     glTexCoord2f(0,0);
+//     glVertex2f(0.0f,-1.0f);
+
+//     glTexCoord2f(1,0);
+  
+//     glVertex2f(1.0f,-1.0f+widthfix+Xfix);
+
+//     glTexCoord2f(1,1);
+//     // glVertex2f(topHalf*0.5f,1.0f);
+//     glVertex2f(1.0f,1.0f-widthfix+Xfix);
+//     glTexCoord2f(0,1);
+//     glVertex2f(0.0f,1.0f);
+
+//     glEnd();
 
     glDisable(GL_TEXTURE_2D);
 
@@ -681,10 +728,10 @@ void keyboard(unsigned char key, int x, int y)
             testB -= 0.05;
              break;
         case 'u':
-            testD += 1;
+            testD += 0.1;
             break;
         case 'j':
-            testD -= 1;
+            testD -= 0.1;
              break;
         case 'Q':  //[Q]キー
             exit(0);  //プロセス終了
