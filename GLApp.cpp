@@ -13,7 +13,7 @@ void initGL()
     glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
      int windowId = glutCreateWindow("CG Final");
     std::cout << "windowId: " << windowId << std::endl;
-
+  
     const GLubyte* version = glGetString(GL_VERSION);
 
     if (version == nullptr) {
@@ -32,7 +32,8 @@ void initGL()
     //     exit(1);
     // }
     //キューブディスペンサーの初期化
-    
+   //glutFullScreen();  // ここでフルスクリーンに切り替え
+
     //コールバック関数指定
     glutDisplayFunc(display);  //ディスプレイコールバック関数（"display"）
     glutReshapeFunc(reshape);  //リサイズコールバック関数（"reshape"）
@@ -116,7 +117,7 @@ void initGL()
         GL_TEXTURE_2D,
         0,
         GL_RGBA,
-        winW,
+        winW /2,
         winH,
         0,
         GL_RGBA,
@@ -161,12 +162,12 @@ void display()
         0,
         0,
         0,
-        winW,
+        winW/2,
         winH
     );
-    // initView(false);
-    // // オブジェクト描画
-    // dispobj();
+    initView(false);
+    // オブジェクト描画
+    dispobj();
     // initView(false);
     // dispobj();
     //テクスチャ
@@ -184,7 +185,7 @@ void display()
     );
     GLenum err = glGetError();
 
-std::cout << err << std::endl;
+// std::cout << err << std::endl;
         //     unsigned char pixel[4];
         // glReadPixels(
         //     winW/4,
@@ -201,13 +202,13 @@ std::cout << err << std::endl;
         // << (int)pixel[1] << " "
         // << (int)pixel[2] << std::endl;
     if(!NormalView){
-     DrawWarpedTextures();
+      DrawWarpedTextures();
     }
 
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
@@ -251,26 +252,26 @@ void initView(bool isLeftEye) {
         // );
         return;
     }
-    glViewport(0, 0, viewW, viewH);
+    //glViewport(0, 0, viewW, viewH);
 
-    // if (isLeftEye) {
-    //     glViewport(viewW, 0, viewW/2.0f, viewH);
-    // } else {
-    //     glViewport(viewW+viewW/4.0f,0, viewW/2.0f, viewH);
-    // }
-    // if(isLeftEye){
-    //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // }
+    if (isLeftEye) {
+        glViewport(0, 0, viewW/2.0f, viewH);
+    } else {
+        glViewport(viewW/2.0f,0, viewW/2.0f, viewH);
+    }
+    if(isLeftEye){
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
 
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     double fruH = 33.0f/4.0f;
-    double fruW = 23.0f/4.0f;
+    double fruW = 21.7f/4.0f;
     double winDis = 90.0f/2.0f;
     // パラメータ定義
-    float W = 22.0f;      // モニターの横幅 (メートル換算など)
-    float H = 50.0f;      // モニターの縦幅
+    float W = 21.7f;      // モニターの横幅 (メートル換算など)
+    float H = 54.0f;      // モニターの縦幅
     float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
     float nearPlane = 90.0f/2.0f;
     float farPlane = 1000.0f;
@@ -282,8 +283,8 @@ void initView(bool isLeftEye) {
     float top    =  (H / 2.0f) * (nearPlane / dd);
 
      glFrustum(
-     bottom+testD, //left
-     top+testD, //Right
+     bottom, //left
+     top, //Right
      left,//bottom
      right, //top
      nearPlane,
@@ -311,19 +312,19 @@ void initView(bool isLeftEye) {
     double LookY = 0;
     double LookZ = 0;
     double LookYp = -90;
-    double LookZp = -68.64f;
+    double LookZp = -65.36;
     double angle = 45.0f;
-    Vec_3D viewDir = {0.0f, -sin(angle), -cos(angle)};
+    //Vec_3D viewDir = {0.0f, -sin(angle), -cos(angle)};
     if (isLeftEye) {
         gluLookAt(
             eyeOffset, LookY,LookZ,
-            eyeOffset, LookYp, LookZp,
+            eyeOffset,LookYp,LookZp,
             1.0, 0.0, 0.0
         );
     } else {
         gluLookAt(
             -eyeOffset, LookY, LookZ,
-            -eyeOffset, LookYp,LookZp,
+            -eyeOffset,LookYp,LookZp,
             1.0, 0.0, 0.0
         );
     }
@@ -394,7 +395,7 @@ void dispobj(){
     
     glPopMatrix();
     //目標物体
-    double LookY = 89;
+    double LookY = 90;
     double LookZ = 50;
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
@@ -402,7 +403,10 @@ void dispobj(){
     glTranslated(0,5-LookY,-LookZ);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(20,10,10);
+    setColor(0.0, 1.0, 0.0, 1.0);
+   //draw_floor(1,1,0,0,0);
     setColor(1.0, 1.0, 1.0, 1.0);
+
     glutSolidCube(1);
     glPopMatrix();
     glPushMatrix();
@@ -412,7 +416,7 @@ void dispobj(){
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(20,1,10);
     setColor(0.0,1.0,0.0,1.0);
-    draw_floor(1,1,0,0,0);
+//    draw_floor(1,1,0,0,0);
     glPopMatrix();
     if(cubeDispenser.GetPlacedCubes().size()>0){
         // モデル描画
@@ -437,35 +441,34 @@ void dispobj(){
 
 void DrawWarpedTextures()
 {
-        int viewW = static_cast<int>(winW * rDisp / 2.0);
+    int viewW = static_cast<int>(winW * rDisp / 2.0);
     int viewH = static_cast<int>(winH * rDisp);
-     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+    double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
 
       viewW = static_cast<int>(winW * rDisp);
         viewH = static_cast<int>(winH * rDisp);
         aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, viewW,viewH);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        // glFrustum(
-        // -aspect, aspect,
-        // -1.0, 1.0,
-        // 1.0, 10000.0
-        // );
-        gluPerspective(
-            40.0,
-            aspect,
-            1.0,
-            10000.0
-        );
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        gluLookAt(
-            camX ,camY,camZ,
-            lookX+camX, lookY+ camY, lookZ+camZ,
-            0.0, 1.0, 0.0
-        );
+    //     glMatrixMode(GL_PROJECTION);
+    //     glLoadIdentity();
+    //     // glFrustum(
+    //     // -aspect, aspect,
+    //     // -1.0, 1.0,
+    //     // 1.0, 10000.0
+    //     // );
+    //     gluPerspective(
+    //         40.0,
+    //         aspect,
+    //         1.0,
+    //         10000.0
+    //     );
+    //     glMatrixMode(GL_MODELVIEW);
+    //     glLoadIdentity();
+    //     gluLookAt(
+    //         camX ,camY,camZ,
+    //         lookX+camX, lookY+ camY, lookZ+camZ,
+    //         0.0, 1.0, 0.0
+    //     );
     glClear(
         GL_COLOR_BUFFER_BIT |
         GL_DEPTH_BUFFER_BIT
@@ -489,10 +492,13 @@ void DrawWarpedTextures()
     glEnable(GL_TEXTURE_2D);
 
 
-    double widthfix = 0.15f;//台形補正
+    double widthfix = 0.2f;//台形補正
     double Xfix = -0.1f;
-    // double widthfix = 0.0f;//台形補正
-    //double Xfix = 0.0f;
+    double Lfix = 0;
+
+    //double widthfix = testB;//台形補正
+    //double Xfix = testB;
+    // double Lfix = testB;
 
     glBindTexture(GL_TEXTURE_2D, leftTex);
 //左眼用の描画
@@ -502,35 +508,35 @@ void DrawWarpedTextures()
     glVertex2f(-1.0f,-1.0f);
 
     glTexCoord2f(1,0);
-    glVertex2f(1.0f,-1.0f+widthfix+Xfix);
+    glVertex2f(0.0,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
     // glVertex2f(topHalf*0.5f,1.0f);
-    glVertex2f(1.0f,1.0f-widthfix+Xfix);
+    glVertex2f(0.0,1.0f-widthfix+Xfix+Lfix);
     glTexCoord2f(0,1);
     glVertex2f(-1.0f,1.0f);
     // glVertex2f(-topHalf*0.5f,1.0f);
 
     glEnd();
 
-//     glBindTexture(GL_TEXTURE_2D, rightTex);
-// //右目用の描画
-//     glBegin(GL_QUADS);
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+//右目用の描画
+    glBegin(GL_QUADS);
 
-//     glTexCoord2f(0,0);
-//     glVertex2f(0.0f,-1.0f);
+    glTexCoord2f(0,0);
+    glVertex2f(0.0f,-1.0f);
 
-//     glTexCoord2f(1,0);
+    glTexCoord2f(1,0);
   
-//     glVertex2f(1.0f,-1.0f+widthfix+Xfix);
+    glVertex2f(1.0f,-1.0f+widthfix+Xfix);
 
-//     glTexCoord2f(1,1);
-//     // glVertex2f(topHalf*0.5f,1.0f);
-//     glVertex2f(1.0f,1.0f-widthfix+Xfix);
-//     glTexCoord2f(0,1);
-//     glVertex2f(0.0f,1.0f);
+    glTexCoord2f(1,1);
+    // glVertex2f(topHalf*0.5f,1.0f);
+    glVertex2f(1.0f,1.0f-widthfix+Xfix+Lfix);
+    glTexCoord2f(0,1);
+    glVertex2f(0.0f,1.0f);
 
-//     glEnd();
+    glEnd();
 
     glDisable(GL_TEXTURE_2D);
 
@@ -621,7 +627,7 @@ void mouse(int button, int state, int x, int y)
         pointingCell.color = cubeDispenser.GetCurrCubeColor();
         cubeDispenser.AddCube(pointingCell);
 	}
-    std::cout << "Mouse Button: " << mButton << ", State: " << mState << ", X: " << mX << ", Y: " << mY << std::endl;
+   // std::cout << "Mouse Button: " << mButton << ", State: " << mState << ", X: " << mX << ", Y: " << mY << std::endl;
     
 }
 
@@ -705,11 +711,11 @@ void keyboard(unsigned char key, int x, int y)
             isZooming = !isZooming;
             break;
         case 'w':
-            eyeOffset += 10.0;
+            eyeOffset += 0.1;
             break;
         case 's':
             if(NormalView == false){
-                eyeOffset -= 10.0;
+                eyeOffset -= 0.1;
             }else{
                 cubeDispenser.SaveToFile("placed_cubes.txt");
             }
@@ -722,10 +728,12 @@ void keyboard(unsigned char key, int x, int y)
             break;
         case 'y':
 
-            testB += 0.05;
+            testB += 0.01;
+            std::cout << "testB: " << testB << std::endl;
             break;
         case 'h':
-            testB -= 0.05;
+            testB -= 0.01;
+            std::cout << "testB: " << testB << std::endl;
              break;
         case 'u':
             testD += 0.1;
