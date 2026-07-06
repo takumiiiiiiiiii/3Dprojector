@@ -101,6 +101,8 @@ void glMyCylinder(double top, double bottom, double height, double slices)
     glPopMatrix();
 }
 
+
+
 void my_drawCylinder(double between,double height,double width){
     double Cylinder_h=10;
     double T_y=(height*Cylinder_h)/2;
@@ -144,6 +146,36 @@ void glMySolidCircle(double cx, double cy, double cz, double r, int p)
     glEnd();
 }
 
+void glMyDrawCheckerFloor(float size, int num)
+{
+    float tile = size / num;
+
+    glBegin(GL_QUADS);
+
+    for (int x = 0; x < num; x++)
+    {
+        for (int z = 0; z < num; z++)
+        {
+            if ((x + z) % 2 == 0)
+                setColor(0.0,0.0,0.0,1.0);
+            else
+                setColor(1.0,1.0,1.0,1.0);
+
+            float x0 = -size/2 + x*tile;
+            float x1 = x0 + tile;
+
+            float z0 = -size/2 + z*tile;
+            float z1 = z0 + tile;
+
+            glVertex3f(x0,0,z0);
+            glVertex3f(x1,0,z0);
+            glVertex3f(x1,0,z1);
+            glVertex3f(x0,0,z1);
+        }
+    }
+
+    glEnd();
+}
 // 色のセット
 void setColor(double r, double g, double b, double a)
 {
