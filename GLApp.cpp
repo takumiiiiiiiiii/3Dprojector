@@ -409,13 +409,35 @@ void dispobj(){
 
     glutSolidCube(1);
     glPopMatrix();
-    glPushMatrix();
-    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
+    double wallDis = 10.92;
 
+    //床
+    glPushMatrix();
     glTranslated(0,-LookY,-LookZ);
-    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(20,1,10);
-    setColor(0.0,1.0,0.0,1.0);
+    glRotated(180, 0.0, 0.0, 1.0);  //こっちに向く
+    glMyDrawCheckerFloor(47, 25);
+//    draw_floor(1,1,0,0,0);
+    glPopMatrix();
+    //右壁
+    glPushMatrix();
+    glTranslated(wallDis,-LookY,-LookZ);
+    glRotated(90, 0.0, 0.0, 1.0);  //こっちに向く
+    glMyDrawCheckerFloor(47, 25);
+//    draw_floor(1,1,0,0,0);
+    glPopMatrix();
+    //左壁
+    glPushMatrix();
+    glTranslated(-wallDis,-LookY,-LookZ);
+    glRotated(-90, 0.0, 0.0, 1.0);  //こっちに向く
+    glMyDrawCheckerFloor(47, 25);
+    glPopMatrix();
+     //おくかべ
+    glPushMatrix();
+
+    glTranslated(0,-LookY+12,-LookZ-wallDis*2);
+    glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
+    glScaled(1.0,7.0,1.0);
+    glMyDrawCheckerFloor(27, 25);
 //    draw_floor(1,1,0,0,0);
     glPopMatrix();
     if(cubeDispenser.GetPlacedCubes().size()>0){
