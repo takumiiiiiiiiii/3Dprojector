@@ -1,4 +1,4 @@
-//g++ -O3 CubeDispenser.cpp main15.cpp GLApp.cpp Globals.cpp Objects.cpp Ray.cpp Shape.cpp Vec3D.cpp Voxcel.cpp Model.cpp -std=c++11 -framework OpenGL -framework GLUT `pkg-config --cflags --libs opencv4 assimp` -Wno-deprecated
+//g++ -O3 CubeDispenser.cpp main15.cpp GLApp.cpp Globals.cpp Objects.cpp Ray.cpp Shape.cpp TcpServer.cpp Vec3D.cpp Voxcel.cpp Model.cpp -std=c++11 -framework OpenGL -framework GLUT `pkg-config --cflags --libs opencv4 assimp` -Wno-deprecated
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -14,8 +14,10 @@
 #include "Globals.h"
 #include "Objects.h"
 #include "Shape.h"
+#include "TcpServer.h"
 #include "Vec3D.h"
 #include "Voxcel.h"
+
 #define TILE 50  //床頂点数
 #define OSTS 10
 

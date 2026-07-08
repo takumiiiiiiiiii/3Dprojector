@@ -2,6 +2,7 @@
 #include "Vec3D.h"
 #include "Model.h"
 #include "CubeDispenser.h"
+#include "TcpServer.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -15,6 +16,15 @@
 extern Vec_3D fPoint[TILE][TILE];
 extern double fWidth;
 
+// TCPサーバーのインスタンス
+extern TcpServer tcpServer;
+//現実の情報
+// モニター四隅
+extern Vec_3D pa;  // 左下
+extern Vec_3D pb;  // 右下
+extern Vec_3D pc;  // 左上
+// 視点（目）
+extern Vec_3D pe;
 //カメラの位置と向き
 extern double eDist;
 extern double eDegX;

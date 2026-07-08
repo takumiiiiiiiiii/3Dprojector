@@ -5,9 +5,20 @@
 #include "Voxcel.h"
 #include "Ray.h"
 #include "Model.h"
+#include "TcpServer.h"
 //初期設定関数
 void initGL()
 {
+    //TCPサーバーの初期化
+    if(!tcpServer.Start(50000))
+    {
+        std::cerr << "TCPサーバーの起動に失敗しました" << std::endl;
+        exit(1);
+    }
+    std::cout << "TCPサーバーが起動しました" << std::endl;
+
+    
+
     //ウィンドウ生成
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
     glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
@@ -183,24 +194,8 @@ void display()
         winW/2,
         winH
     );
+
     GLenum err = glGetError();
-
-// std::cout << err << std::endl;
-        //     unsigned char pixel[4];
-        // glReadPixels(
-        //     winW/4,
-        //     winH/2,
-        //     1,
-        //     1,
-        //     GL_RGBA,
-        //     GL_UNSIGNED_BYTE,
-        //     pixel
-        // );
-
-        // std::cout
-        // << (int)pixel[0] << " "
-        // << (int)pixel[1] << " "
-        // << (int)pixel[2] << std::endl;
     if(!NormalView){
       DrawWarpedTextures();
     }
@@ -208,6 +203,30 @@ void display()
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
+    //tcpの受信
+    char buffer[1024];
+    int size = tcpServer.Receive(buffer, sizeof(buffer)-1);
+
+    buffer[size] = '\0';
+
+    //std::cout << "受信: " << buffer << std::endl;
+    // 受信データをカンマで分割して変数に格納
+    std::stringstream ss(buffer);
+    std::string item;
+    std::vector<std::string> data;
+
+    while (std::getline(ss, item, ','))
+    {
+        data.push_back(item);
+    }
+    float centerX = std::stof(data[0]);
+    float centerY = std::stof(data[1]);
+    float eyeDistance = std::stof(data[2]);
+
+    std::cout <<"X座標:"<< centerX << std::endl;
+    std::cout << "Y座標:" << centerY << std::endl;
+    std::cout << "目の間:" << eyeDistance << std::endl;
+
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
@@ -263,12 +282,15 @@ void initView(bool isLeftEye) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
+
+
+
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    double fruH = 33.0f/4.0f;
-    double fruW = 21.7f/4.0f;
-    double winDis = 90.0f/2.0f;
+    // double fruH = 33.0f/4.0f;
+    // double fruW = 21.7f/4.0f;
+    // double winDis = 90.0f/2.0f;
     // パラメータ定義
     float W = 21.7f;      // モニターの横幅 (メートル換算など)
     float H = 54.0f;      // モニターの縦幅
@@ -282,6 +304,19 @@ void initView(bool isLeftEye) {
     float bottom = -(H / 2.0f) * (nearPlane / dd);
     float top    =  (H / 2.0f) * (nearPlane / dd);
 
+    // 2. ビュー行列 (LookAt) の計算
+    // モニターの四隅の座標を定義
+    Vec_3D vr = vectorNormalize(diffVec(pb, pa));
+    Vec_3D vu = vectorNormalize(diffVec(pc, pa));
+    Vec_3D vn = vectorNormalize(crossProduct(vr, vu));
+    //スクリーン中心
+    Vec_3D center = diffVec(addVec(pb,pc),pa);
+    Vec_3D pd = addVec(pb, diffVec(pc, pa));
+
+    center.x = (pa.x + pb.x + pc.x + pd.x) / 4.0;
+    center.y = (pa.y + pb.y + pc.y + pd.y) / 4.0;
+    center.z = (pa.z + pb.z + pc.z + pd.z) / 4.0;
+
      glFrustum(
      bottom, //left
      top, //Right
@@ -290,20 +325,6 @@ void initView(bool isLeftEye) {
      nearPlane,
      farPlane
     );
-    // glFrustum(
-    //  -fruW, //left
-    //  fruW, //Right
-    //  -fruH,//bottom
-    //  fruH, //top
-    //  winDis,
-    //  1000.0
-    // );
-    //  gluPerspective(
-    //         40.0,
-    //         aspect,
-    //         1.0,
-    //         10000.0
-    //     );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
@@ -314,7 +335,6 @@ void initView(bool isLeftEye) {
     double LookYp = -90;
     double LookZp = -65.36;
     double angle = 45.0f;
-    //Vec_3D viewDir = {0.0f, -sin(angle), -cos(angle)};
     if (isLeftEye) {
         gluLookAt(
             eyeOffset, LookY,LookZ,
@@ -328,20 +348,6 @@ void initView(bool isLeftEye) {
             1.0, 0.0, 0.0
         );
     }
-    //  if (isLeftEye) {
-    //     gluLookAt(
-    //         eyeOffset, LookY,LookZ,
-    //         eyeOffset+viewDir.x, viewDir.y, viewDir.z,
-    //         1.0, 0.0, 0.0
-    //     );
-    // } else {
-    //     gluLookAt(
-    //         -eyeOffset, LookY, LookZ,
-    //         -eyeOffset+viewDir.x, viewDir.y,viewDir.z,
-    //         1.0, 0.0, 0.0
-    //     );
-    // }
-    
 }
 
 void dispobj(){
