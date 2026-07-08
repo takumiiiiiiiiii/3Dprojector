@@ -1,7 +1,15 @@
 #include "Globals.h"
+// TCPサーバーのインスタンス
+TcpServer tcpServer;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
+//現実の情報
+Vec_3D pa = {-21.7f/2.0f, -90.0f, -30.0f};  // 左下
+Vec_3D pb = {21.7f/2.0f, -90.0f, -30.0f};  // 右下
+Vec_3D pc = {-0.3f,-90.0f+38.18f, -30.0f-38.18f};  // 左上
+// 視点（目）
+Vec_3D pe = {0.0, 0.0, 0.0};
 //視点極座標
 double eDist, eDegX, eDegY;
 double camX=0, camY=0, camZ=0;
@@ -20,9 +28,6 @@ int winW=1200, winH=800;
 int mButton, mState, mX, mY;
 //現実世界の情報
 //モニターの頂点
-Vec_3D pa = {-0.3, 0.0, 0.0};
-Vec_3D pb = { 0.3, 0.0, 0.0};
-Vec_3D pc = {-0.3, 0.4, 0.0};
 //フレームレート
 double f = 30.0;
 //オブジェクトのグローバル変数
