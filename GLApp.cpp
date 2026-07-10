@@ -6,23 +6,31 @@
 #include "Ray.h"
 #include "Model.h"
 #include "TcpServer.h"
+
 //初期設定関数
 void initGL()
 {
-    //TCPサーバーの初期化
-    if(!tcpServer.Start(50000))
+    if (useTcp)
     {
-        std::cerr << "TCPサーバーの起動に失敗しました" << std::endl;
-        exit(1);
+        if (!tcpServer.Start(50000))
+        {
+            std::cerr << "TCPサーバーの起動に失敗しました" << std::endl;
+            exit(1);
+        }
+        std::cout << "TCPサーバーが起動しました" << std::endl;
     }
-    std::cout << "TCPサーバーが起動しました" << std::endl;
-
-    
-
+    else
+    {
+        std::cout << "TCPなしモードで起動します" << std::endl;
+    }
     //ウィンドウ生成
+    
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
-    glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
-     int windowId = glutCreateWindow("CG Final");
+glutInitWindowSize(1920,1080);
+int windowId = glutCreateWindow("CG Final");
+
+// フルスクリーン
+glutFullScreen();
     std::cout << "windowId: " << windowId << std::endl;
   
     const GLubyte* version = glGetString(GL_VERSION);
@@ -203,35 +211,47 @@ void display()
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    //tcpの受信
-    char buffer[1024];
-    int size = tcpServer.Receive(buffer, sizeof(buffer)-1);
-
-    buffer[size] = '\0';
-
-    //std::cout << "受信: " << buffer << std::endl;
-    // 受信データをカンマで分割して変数に格納
-    std::stringstream ss(buffer);
-    std::string item;
-    std::vector<std::string> data;
-
-    while (std::getline(ss, item, ','))
+    float eyeX,eyeY,eyeZ;
+    if (useTcp)
     {
-        data.push_back(item);
+        //tcpの受信
+        char buffer[1024];
+        int size = tcpServer.Receive(buffer, sizeof(buffer) - 1);
+        buffer[size] = '\0';
+
+        std::stringstream ss(buffer);
+        std::string item;
+        std::vector<std::string> data;
+
+        while (std::getline(ss, item, ','))
+        {
+            data.push_back(item);
+        }
+
+        float CameraX = 600;
+        float CameraY = 700.0f / 2.0f;
+        eyeX = std::stof(data[0]) ;
+        eyeY = std::stof(data[1])+cameraHeight;//カメラの位置を考慮して目の位置を調整
+        eyeZ = std::stof(data[2])-cameraDis;//カメラの位置を考慮して目の位置を調整
+        //eyeOffset = std::stof(data[3]);// TCPから受信した値を使用
     }
-    float centerX = std::stof(data[0]);
-    float centerY = std::stof(data[1]);
-    float eyeDistance = std::stof(data[2]);
+    else
+    {
+        // TCPなし時は手動値（キーボード操作等で更新可能）を使う
+        eyeX = manualCenterX;
+        eyeY = manualCenterY;
+        eyeZ = manualEyeDistance;
+    }
 
-    std::cout <<"X座標:"<< centerX << std::endl;
-    std::cout << "Y座標:" << centerY << std::endl;
-    std::cout << "目の間:" << eyeDistance << std::endl;
-
+    //目の位置を変更
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
-
+    pe.x = -eyeX;
+    pe.y = -eyeY;
+    pe.z = eyeZ;
+    std::cout << "Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
     // 視点極座標から直交座標へ変換
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
@@ -272,6 +292,7 @@ void initView(bool isLeftEye) {
         return;
     }
     //glViewport(0, 0, viewW, viewH);
+    
 
     if (isLeftEye) {
         glViewport(0, 0, viewW/2.0f, viewH);
@@ -292,39 +313,88 @@ void initView(bool isLeftEye) {
     // double fruW = 21.7f/4.0f;
     // double winDis = 90.0f/2.0f;
     // パラメータ定義
-    float W = 21.7f;      // モニターの横幅 (メートル換算など)
-    float H = 54.0f;      // モニターの縦幅
-    float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
+    // float W = 21.7f;      // モニターの横幅 (メートル換算など)
+    // float H = 54.0f;      // モニターの縦幅
+    float dd = 80.0f;      // モニターまでの垂直距離 (50cm)
     float nearPlane = 90.0f/2.0f;
     float farPlane = 1000.0f;
-
-    // 1. プロジェクション行列 (Frustum) の計算
-    float left   = -(W / 2.0f) * (nearPlane / dd);
-    float right  =  (W / 2.0f) * (nearPlane / dd);
-    float bottom = -(H / 2.0f) * (nearPlane / dd);
-    float top    =  (H / 2.0f) * (nearPlane / dd);
+    //pe = {pe.x, pe.y+testD, pe.z};
 
     // 2. ビュー行列 (LookAt) の計算
     // モニターの四隅の座標を定義
+    // モニターの右方向ベクトルを計算
     Vec_3D vr = vectorNormalize(diffVec(pb, pa));
+    // モニターの上方向ベクトルを計算
     Vec_3D vu = vectorNormalize(diffVec(pc, pa));
+    // モニターの法線ベクトルを計算
     Vec_3D vn = vectorNormalize(crossProduct(vr, vu));
+
     //スクリーン中心
-    Vec_3D center = diffVec(addVec(pb,pc),pa);
     Vec_3D pd = addVec(pb, diffVec(pc, pa));
 
-    center.x = (pa.x + pb.x + pc.x + pd.x) / 4.0;
-    center.y = (pa.y + pb.y + pc.y + pd.y) / 4.0;
-    center.z = (pa.z + pb.z + pc.z + pd.z) / 4.0;
+    Vec_3D center;
 
-     glFrustum(
-     bottom, //left
-     top, //Right
-     left,//bottom
-     right, //top
-     nearPlane,
-     farPlane
+    center.x = (pa.x + pb.x + pc.x + pd.x) * 0.25f;
+    center.y = (pa.y + pb.y + pc.y + pd.y) * 0.25f;
+    center.z = (pa.z + pb.z + pc.z + pd.z) * 0.25f;
+    //  glFrustum(
+    //  bottom, //left
+    //  top, //Right
+    //  left,//bottom
+    //  right, //top
+    //  nearPlane,
+    //  farPlane
+    // );
+    // スクリーンの左下、右下、左上の座標を定義
+    Vec_3D va = diffVec(pa, pe);//スクリーンの左下から視点へのベクトル
+    Vec_3D vb = diffVec(pb, pe);//スクリーンの右下から視点へのベクトル
+    Vec_3D vc = diffVec(pc, pe);//スクリーンの左上から視点へのベクトル
+
+    //
+    double d = -innerProduct(va, vn);
+    //ベクトルの内積を使って、スクリーンの左、右、下、上の座標を計算
+    double left =
+        innerProduct(vr, va) * nearPlane / d;//
+
+    double right =
+        innerProduct(vr, vb) * nearPlane / d;
+
+    double bottom =
+        innerProduct(vu, va) * nearPlane / d;
+
+    double top =
+        innerProduct(vu, vc) * nearPlane / d;
+
+    // glFrustum(
+    //     left+testD,
+    //     right+testD,
+    //     bottom,
+    //     top,
+    //     nearPlane,
+    //     farPlane
+    // );
+    
+    // glFrustum(
+    //  bottom+testD, //left
+    //  top+testD, //Right
+    //  left,//bottom
+    //  right, //top
+    //  nearPlane,
+    //  farPlane
+    // );
+    glFrustum(
+    -top,    // left
+    -bottom, // right
+    left, right,
+    nearPlane, farPlane
     );
+    // glFrustum(
+    // bottom+testD, // left  ← vu基準の値（そのまま、符号反転なし）
+    // top+testD,    // right
+    // left,         // bottom ← vr基準の値
+    // right,        // top
+    // nearPlane, farPlane
+    // );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
@@ -332,22 +402,43 @@ void initView(bool isLeftEye) {
 
     double LookY = 0;
     double LookZ = 0;
-    double LookYp = -90;
+    double LookYp  = -90;
     double LookZp = -65.36;
     double angle = 45.0f;
+    // forwardを厳密にvnに一致させるためのターゲット
+    // eye = pe;
+    // Vec_3D lookTarget = addVec(eye, vn);
+    center = diffVec(pe, vn);
     if (isLeftEye) {
+        Vec_3D eye = pe;
         gluLookAt(
-            eyeOffset, LookY,LookZ,
-            eyeOffset,LookYp,LookZp,
-            1.0, 0.0, 0.0
+            eye.x+eyeOffset/2,eye.y,eye.z,
+            center.x+eyeOffset, center.y, center.z,
+            1,0,0
         );
     } else {
+        Vec_3D eye = pe;
         gluLookAt(
-            -eyeOffset, LookY, LookZ,
-            -eyeOffset,LookYp,LookZp,
-            1.0, 0.0, 0.0
+            eye.x-eyeOffset/2,eye.y,eye.z,
+            center.x-eyeOffset, center.y, center.z,
+            1,0,0
         );
     }
+    // if (isLeftEye) {
+    //     Vec_3D eye = pe;
+    //     gluLookAt(
+    //         eye.x+eyeOffset/2,eye.y,eye.z,
+    //         center.x+eyeOffset/2, center.y, center.z,
+    //         1,0,0
+    //     );
+    // } else {
+    //     Vec_3D eye = pe;
+    //     gluLookAt(
+    //         eye.x-eyeOffset/2,eye.y,eye.z,
+    //         center.x-eyeOffset/2, center.y, center.z,
+    //         1,0,0
+    //     );
+    // }
 }
 
 void dispobj(){
@@ -411,39 +502,42 @@ void dispobj(){
     glScaled(20,10,10);
     setColor(0.0, 1.0, 0.0, 1.0);
    //draw_floor(1,1,0,0,0);
-    setColor(1.0, 1.0, 1.0, 1.0);
+    // setColor(1.0, 1.0, 1.0, 1.0);
 
     glutSolidCube(1);
     glPopMatrix();
     double wallDis = 10.92;
 
+    
+    double FloorSize = 47*2;
+    double FloorChexSize = 25*2;
     //床
     glPushMatrix();
     glTranslated(0,-LookY,-LookZ);
     glRotated(180, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
+    glMyDrawCheckerFloor(FloorSize, FloorChexSize);
 //    draw_floor(1,1,0,0,0);
     glPopMatrix();
-    //右壁
-    glPushMatrix();
-    glTranslated(wallDis,-LookY,-LookZ);
-    glRotated(90, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
-//    draw_floor(1,1,0,0,0);
-    glPopMatrix();
-    //左壁
-    glPushMatrix();
-    glTranslated(-wallDis,-LookY,-LookZ);
-    glRotated(-90, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
-    glPopMatrix();
+//     //右壁
+//     glPushMatrix();
+//     glTranslated(wallDis,-LookY+FloorSize/2.0,-LookZ);
+//     glRotated(90, 0.0, 0.0, 1.0);  //こっちに向く
+//     glMyDrawCheckerFloor(FloorSize, FloorChexSize);
+// //    draw_floor(1,1,0,0,0);
+//     glPopMatrix();
+//     //左壁
+//     glPushMatrix();
+//     glTranslated(-wallDis,-LookY+47.0f/2.0,-LookZ);
+//     glRotated(-90, 0.0, 0.0, 1.0);  //こっちに向く
+//     glMyDrawCheckerFloor(FloorSize, FloorChexSize);
+//     glPopMatrix();
      //おくかべ
     glPushMatrix();
 
     glTranslated(0,-LookY+12,-LookZ-wallDis*2);
     glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
     glScaled(1.0,7.0,1.0);
-    glMyDrawCheckerFloor(27, 25);
+    glMyDrawCheckerFloor(FloorSize, FloorChexSize);
 //    draw_floor(1,1,0,0,0);
     glPopMatrix();
     if(cubeDispenser.GetPlacedCubes().size()>0){
@@ -463,8 +557,6 @@ void dispobj(){
         glScaled(1.0,1.0,1.0);
         glutSolidCube(GRID_SIZE);
     glPopMatrix();
-
-
 }
 
 void DrawWarpedTextures()
@@ -575,14 +667,45 @@ void DrawWarpedTextures()
 //リサイズコールバック関数
 void reshape(int w, int h)
 {
-    int viewW = static_cast<int>(w * rDisp / 2.0);
-    int viewH = static_cast<int>(h * rDisp);
-    glViewport(0, 0, viewW, viewH);  //ウィンドウ内の描画領域(ビューポート)の指定
+    // printf("%d %d\n",w,h);
+    // int viewW = static_cast<int>(w * rDisp / 2.0);
+    // int viewH = static_cast<int>(h * rDisp);
+    // glViewport(0, 0, viewW, viewH);  //ウィンドウ内の描画領域(ビューポート)の指定
 
-    //投影変換
-    glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    glLoadIdentity();  //カレント行列初期化
-    gluPerspective(40.0, (double)viewW/(double)viewH, 1.0, 10000.0);  //投影変換行列生成
+    // //投影変換
+    // glMatrixMode(GL_PROJECTION);  //カレント行列の設定
+    // glLoadIdentity();  //カレント行列初期化
+    // gluPerspective(40.0, (double)viewW/(double)viewH, 1.0, 10000.0);  //投影変換行列生成
+
+     glViewport(0, 0, w, h);
+
+    // 左テクスチャ
+    glBindTexture(GL_TEXTURE_2D, leftTex);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        w / 2,
+        h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    // 右テクスチャ
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        w / 2,
+        h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
     
     winW = w; winH = h;  //ウィンドウサイズをグローバル変数に格納
 
@@ -739,11 +862,11 @@ void keyboard(unsigned char key, int x, int y)
             isZooming = !isZooming;
             break;
         case 'w':
-            eyeOffset += 0.1;
+            eyeOffset += 0.01;
             break;
         case 's':
             if(NormalView == false){
-                eyeOffset -= 0.1;
+                eyeOffset -= 0.01;
             }else{
                 cubeDispenser.SaveToFile("placed_cubes.txt");
             }

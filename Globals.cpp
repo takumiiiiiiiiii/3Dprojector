@@ -1,13 +1,21 @@
 #include "Globals.h"
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
+//tcpのオンオフ
+bool useTcp = true;
+float manualCenterX = 0.0f;
+float manualCenterY = 0.0f;
+float manualEyeDistance = 600.0f;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
+
 //現実の情報
 Vec_3D pa = {-21.7f/2.0f, -90.0f, -30.0f};  // 左下
 Vec_3D pb = {21.7f/2.0f, -90.0f, -30.0f};  // 右下
-Vec_3D pc = {-0.3f,-90.0f+38.18f, -30.0f-38.18f};  // 左上
+Vec_3D pc = {-21.7f/2.0f,-90.0f+38.18f, -30.0f-38.18f};  // 左上
+double cameraDis = 83.0f; // 目とカメラの間の距離
+double cameraHeight = 17.0f; // 目とカメラの間の距離
 // 視点（目）
 Vec_3D pe = {0.0, 0.0, 0.0};
 //視点極座標
