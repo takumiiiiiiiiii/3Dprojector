@@ -6,8 +6,121 @@
 #include "Ray.h"
 #include "Model.h"
 #include "TcpServer.h"
-
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <chrono>
 //初期設定関数
+namespace {
+    struct EyeTcpData {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        bool valid = false;   // まだ一度もデータを受信していない場合は false
+    };
+ 
+    std::mutex        g_eyeMutex;
+    EyeTcpData         g_latestEyeL;     // 受信スレッドが書き込む最新値
+    EyeTcpData         g_latestEyeR;     // 受信スレッドが書き込む最新値
+    std::thread        g_tcpThread;
+    std::atomic<bool>  g_tcpThreadRunning{false};
+ 
+    // このフレームで実際に使う目位置（display() の先頭で1回だけ確定させる）
+    float g_eyeXL = 0.0f;
+    float g_eyeYL = 0.0f;
+    float g_eyeZL = 0.0f;
+    float g_eyeXR = 0.0f;
+    float g_eyeYR = 0.0f;
+    float g_eyeZR = 0.0f;
+}
+ 
+// 受信専用スレッドの処理本体
+static void TcpReceiveLoop()
+{
+    char buffer[1024];
+    while (g_tcpThreadRunning.load())
+    {
+        int size = tcpServer.Receive(buffer, sizeof(buffer) - 1);
+        if (size <= 0)
+        {
+            // データがまだ来ていない/切断された場合は少し待ってリトライ
+            // （busy loopでCPUを無駄に使わないため）
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            continue;
+        }
+        buffer[size] = '\0';
+ 
+        std::stringstream ss(buffer);
+        std::string item;
+        std::vector<std::string> data;
+        while (std::getline(ss, item, ','))
+        {
+            data.push_back(item);
+        }
+        if (data.size() < 3)
+        {
+            continue; // 不完全なメッセージは破棄
+        }
+ 
+        try
+        {
+            EyeTcpData dL;
+            dL.x = std::stof(data[0]);
+            dL.y = std::stof(data[1]);
+            dL.z = std::stof(data[2]);
+            EyeTcpData dR;
+            dR.x = std::stof(data[3]);
+            dR.y = std::stof(data[4]);
+            dR.z = std::stof(data[5]);
+            dR.valid = true;
+            dL.valid = true;
+
+            std::lock_guard<std::mutex> lock(g_eyeMutex);
+            g_latestEyeL = dL;
+            g_latestEyeR = dR;
+        }
+        catch (const std::exception&)
+        {
+            // パース失敗（壊れたメッセージ等）は無視して次を待つ
+            continue;
+        }
+    }
+}
+
+static void UpdateEyePositionFromShared()
+{
+    if (useTcp)
+    {
+        EyeTcpData dL, dR;
+        {
+            std::lock_guard<std::mutex> lock(g_eyeMutex);
+            dL = g_latestEyeL;
+            dR = g_latestEyeR;
+        }
+        if (dL.valid)
+        {
+            g_eyeXL = dL.x;
+            g_eyeYL = dL.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeZL = dL.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
+        }
+        if (dR.valid)
+        {
+            g_eyeXR = dR.x;
+            g_eyeYR = dR.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeZR = dR.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
+        }   
+        // d.valid が false（まだ一度も受信していない）の場合は
+        // 前フレームの値をそのまま維持する＝映像が飛ばない
+    }
+    else
+    {
+        // TCPなし時は手動値（キーボード操作等で更新可能）を使う
+        g_eyeXL = manualCenterX;
+        g_eyeYL = manualCenterY;
+        g_eyeZL = manualEyeDistance;
+    }
+}
+
 void initGL()
 {
     if (useTcp)
@@ -40,6 +153,8 @@ glutFullScreen();
     } else {
         std::cout << "GL_VERSION: " << reinterpret_cast<const char*>(version) << std::endl;
     }
+    g_tcpThreadRunning = true;
+    g_tcpThread = std::thread(TcpReceiveLoop);
 //     glutCreateWindow("CG Final");  //ウィンドウ生成
 // std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 
@@ -169,6 +284,7 @@ glutFullScreen();
 //ディスプレイコールバック関数
 void display()
 {
+    UpdateEyePositionFromShared();
     initView(true);
     // オブジェクト描画
     dispobj();
@@ -211,38 +327,51 @@ void display()
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    float eyeX,eyeY,eyeZ;
-    if (useTcp)
-    {
-        //tcpの受信
-        char buffer[1024];
-        int size = tcpServer.Receive(buffer, sizeof(buffer) - 1);
-        buffer[size] = '\0';
+    // float eyeX,eyeY,eyeZ;
+    // if (useTcp)
+    // {
+    //     //tcpの受信
+    //     char buffer[1024];
+    //     int size = tcpServer.Receive(buffer, sizeof(buffer) - 1);
+    //     buffer[size] = '\0';
 
-        std::stringstream ss(buffer);
-        std::string item;
-        std::vector<std::string> data;
+    //     std::stringstream ss(buffer);
+    //     std::string item;
+    //     std::vector<std::string> data;
 
-        while (std::getline(ss, item, ','))
-        {
-            data.push_back(item);
-        }
+    //     while (std::getline(ss, item, ','))
+    //     {
+    //         data.push_back(item);
+    //     }
 
-        float CameraX = 600;
-        float CameraY = 700.0f / 2.0f;
-        eyeX = std::stof(data[0]) ;
-        eyeY = std::stof(data[1])+cameraHeight;//カメラの位置を考慮して目の位置を調整
-        eyeZ = std::stof(data[2])-cameraDis;//カメラの位置を考慮して目の位置を調整
-        //eyeOffset = std::stof(data[3]);// TCPから受信した値を使用
+    //     float CameraX = 600;
+    //     float CameraY = 700.0f / 2.0f;
+    //     eyeX = std::stof(data[0]) ;
+    //     eyeY = std::stof(data[1])+cameraHeight;//カメラの位置を考慮して目の位置を調整
+    //     eyeZ = std::stof(data[2])-cameraDis;//カメラの位置を考慮して目の位置を調整
+    //     //eyeOffset = std::stof(data[3]);// TCPから受信した値を使用
+    // }
+    // else
+    // {
+    //     // TCPなし時は手動値（キーボード操作等で更新可能）を使う
+    //     eyeX = manualCenterX;
+    //     eyeY = manualCenterY;
+    //     eyeZ = manualEyeDistance;
+    // }
+    // 【変更】ここでTCP受信は行わない。display()先頭で確定させた
+    // g_eyeX/Y/Z をそのまま使うだけ（左目・右目で同じ値になる）。
+    float eyeX ;
+    float eyeY ;
+    float eyeZ;
+    if(isLeftEye){
+        eyeX = g_eyeXL;
+        eyeY = g_eyeYL;
+        eyeZ = g_eyeZL;
+    } else {
+        eyeX = g_eyeXR;
+        eyeY = g_eyeYR;
+        eyeZ = g_eyeZR;
     }
-    else
-    {
-        // TCPなし時は手動値（キーボード操作等で更新可能）を使う
-        eyeX = manualCenterX;
-        eyeY = manualCenterY;
-        eyeZ = manualEyeDistance;
-    }
-
     //目の位置を変更
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
@@ -305,7 +434,6 @@ void initView(bool isLeftEye) {
 
 
 
-
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -365,36 +493,12 @@ void initView(bool isLeftEye) {
     double top =
         innerProduct(vu, vc) * nearPlane / d;
 
-    // glFrustum(
-    //     left+testD,
-    //     right+testD,
-    //     bottom,
-    //     top,
-    //     nearPlane,
-    //     farPlane
-    // );
-    
-    // glFrustum(
-    //  bottom+testD, //left
-    //  top+testD, //Right
-    //  left,//bottom
-    //  right, //top
-    //  nearPlane,
-    //  farPlane
-    // );
     glFrustum(
     -top,    // left
     -bottom, // right
     left, right,
     nearPlane, farPlane
     );
-    // glFrustum(
-    // bottom+testD, // left  ← vu基準の値（そのまま、符号反転なし）
-    // top+testD,    // right
-    // left,         // bottom ← vr基準の値
-    // right,        // top
-    // nearPlane, farPlane
-    // );
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
@@ -405,9 +509,7 @@ void initView(bool isLeftEye) {
     double LookYp  = -90;
     double LookZp = -65.36;
     double angle = 45.0f;
-    // forwardを厳密にvnに一致させるためのターゲット
-    // eye = pe;
-    // Vec_3D lookTarget = addVec(eye, vn);
+
     center = diffVec(pe, vn);
     if (isLeftEye) {
         Vec_3D eye = pe;
@@ -424,21 +526,6 @@ void initView(bool isLeftEye) {
             1,0,0
         );
     }
-    // if (isLeftEye) {
-    //     Vec_3D eye = pe;
-    //     gluLookAt(
-    //         eye.x+eyeOffset/2,eye.y,eye.z,
-    //         center.x+eyeOffset/2, center.y, center.z,
-    //         1,0,0
-    //     );
-    // } else {
-    //     Vec_3D eye = pe;
-    //     gluLookAt(
-    //         eye.x-eyeOffset/2,eye.y,eye.z,
-    //         center.x-eyeOffset/2, center.y, center.z,
-    //         1,0,0
-    //     );
-    // }
 }
 
 void dispobj(){
@@ -499,7 +586,7 @@ void dispobj(){
 
     glTranslated(0,5-LookY,-LookZ);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(20,10,10);
+    glScaled(10,10,10);
     setColor(0.0, 1.0, 0.0, 1.0);
    //draw_floor(1,1,0,0,0);
     // setColor(1.0, 1.0, 1.0, 1.0);
@@ -512,12 +599,12 @@ void dispobj(){
     double FloorSize = 47*2;
     double FloorChexSize = 25*2;
     //床
-    glPushMatrix();
-    glTranslated(0,-LookY,-LookZ);
-    glRotated(180, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(FloorSize, FloorChexSize);
-//    draw_floor(1,1,0,0,0);
-    glPopMatrix();
+//     glPushMatrix();
+//     glTranslated(0,-LookY,-LookZ);
+//     glRotated(180, 0.0, 0.0, 1.0);  //こっちに向く
+//     glMyDrawCheckerFloor(FloorSize, FloorChexSize);
+// //    draw_floor(1,1,0,0,0);
+//     glPopMatrix();
 //     //右壁
 //     glPushMatrix();
 //     glTranslated(wallDis,-LookY+FloorSize/2.0,-LookZ);
@@ -532,14 +619,14 @@ void dispobj(){
 //     glMyDrawCheckerFloor(FloorSize, FloorChexSize);
 //     glPopMatrix();
      //おくかべ
-    glPushMatrix();
+//     glPushMatrix();
 
-    glTranslated(0,-LookY+12,-LookZ-wallDis*2);
-    glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
-    glScaled(1.0,7.0,1.0);
-    glMyDrawCheckerFloor(FloorSize, FloorChexSize);
-//    draw_floor(1,1,0,0,0);
-    glPopMatrix();
+//     glTranslated(0,-LookY+12,-LookZ-wallDis*2);
+//     glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
+//     glScaled(1.0,7.0,1.0);
+//     glMyDrawCheckerFloor(FloorSize, FloorChexSize);
+// //    draw_floor(1,1,0,0,0);
+//     glPopMatrix();
     if(cubeDispenser.GetPlacedCubes().size()>0){
         // モデル描画
         for(auto cube : cubeDispenser.GetPlacedCubes()){
