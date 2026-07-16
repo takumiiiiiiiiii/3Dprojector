@@ -58,7 +58,8 @@ extern Vec_3D e;
 //ウィンドウサイズ
 extern int winW;
 extern int winH;
-
+//ウィンドウフルスクリーン
+extern bool isFullScreen;
 extern int mButton;
 extern int mState;
 extern int mX;

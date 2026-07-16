@@ -100,13 +100,13 @@ static void UpdateEyePositionFromShared()
         if (dL.valid)
         {
             g_eyeXL = dL.x;
-            g_eyeYL = dL.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeYL = -dL.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
             g_eyeZL = dL.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
         }
         if (dR.valid)
         {
             g_eyeXR = dR.x;
-            g_eyeYR = dR.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeYR = -dR.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
             g_eyeZR = dR.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
         }   
         // d.valid が false（まだ一度も受信していない）の場合は
@@ -143,7 +143,7 @@ glutInitWindowSize(1920,1080);
 int windowId = glutCreateWindow("CG Final");
 
 // フルスクリーン
-glutFullScreen();
+
     std::cout << "windowId: " << windowId << std::endl;
   
     const GLubyte* version = glGetString(GL_VERSION);
@@ -378,7 +378,7 @@ void initView(bool isLeftEye) {
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
     pe.x = -eyeX;
-    pe.y = -eyeY;
+    pe.y = eyeY;
     pe.z = eyeZ;
     std::cout << "Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
     // 視点極座標から直交座標へ変換
@@ -579,8 +579,8 @@ void dispobj(){
     
     glPopMatrix();
     //目標物体
-    double LookY = 90;
-    double LookZ = 50;
+    double LookY = 0;
+    double LookZ = 21;
     glPushMatrix();
     // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
 
@@ -936,6 +936,14 @@ void keyboard(unsigned char key, int x, int y)
         case 'r':
             col = {1.0,0.0,0.0};
             cubeDispenser.ChangeCurrColor(col);
+            break;
+        case 'f':
+            isFullScreen = !isFullScreen;
+            if (isFullScreen) {
+               glutFullScreen();
+            } else {
+               glutReshapeWindow(winW, winH);
+            }
             break;
         case 'g':
             col = {0.0,1.0,0.0};

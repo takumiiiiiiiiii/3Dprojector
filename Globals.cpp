@@ -10,12 +10,13 @@ float manualEyeDistance = 600.0f;
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
 
+
 //現実の情報
-Vec_3D pa = {-21.7f/2.0f, -90.0f, -30.0f};  // 左下
-Vec_3D pb = {21.7f/2.0f, -90.0f, -30.0f};  // 右下
-Vec_3D pc = {-21.7f/2.0f,-90.0f+38.18f, -30.0f-38.18f};  // 左上
-double cameraDis = 83.0f; // 目とカメラの間の距離
-double cameraHeight = 17.0f; // 目とカメラの間の距離
+Vec_3D pa = {-21.7f/2.0f, 0, 0};  // 左下
+Vec_3D pb = {21.7f/2.0f, 0,0};  // 右下
+Vec_3D pc = {-21.7f/2.0f,38.18f, -38.18f};  // 左上
+double cameraDis = 118.0f; // 原点とカメラの間の距離
+double cameraHeight = 128.0f-51.0f; // 目とカメラの間の距離
 // 視点（目）
 Vec_3D pe = {0.0, 0.0, 0.0};
 //視点極座標
@@ -32,6 +33,8 @@ bool isZooming = false;
 Vec_3D e; // 視点の位置
 // ウィンドウサイズ
 int winW=1200, winH=800;
+//ウィンドウフルスクリーン
+bool isFullScreen = false;
 //マウス情報
 int mButton, mState, mX, mY;
 //現実世界の情報
