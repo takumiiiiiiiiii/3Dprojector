@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <cstring>
 
+#include <netinet/tcp.h>
 TcpServer::TcpServer()
 {
     serverSocket = -1;
@@ -67,6 +68,15 @@ bool TcpServer::Start(int port)
         close(serverSocket);
         return false;
     }
+
+    int flag = 1;
+    if (setsockopt(clientSocket, IPPROTO_TCP, TCP_NODELAY,
+                   (char*)&flag, sizeof(flag)) < 0)
+    {
+        std::cerr << "[WARN] setsockopt(TCP_NODELAY) failed : "
+                  << strerror(errno) << std::endl;
+    }
+
 
     std::cout << "[INFO] Client Connected" << std::endl;
 

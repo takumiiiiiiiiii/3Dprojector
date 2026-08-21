@@ -10,6 +10,8 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+
+
 //初期設定関数
 namespace {
     struct EyeTcpData {
@@ -18,10 +20,36 @@ namespace {
         float z = 0.0f;
         bool valid = false;   // まだ一度もデータを受信していない場合は false
     };
- 
-    std::mutex        g_eyeMutex;
+
+    struct EMAFilter {
+        float alpha; // 0.0〜1.0, 小さいほど滑らか(遅延大)
+        Vec_3D value;
+        bool initialized = false;
+        Vec_3D update(const Vec_3D input) {
+            if (!initialized) {
+                value = input;
+                initialized = true;
+            } else {
+                value.x = alpha * input.x + (1.0f - alpha) * value.x;
+                value.y = alpha * input.y + (1.0f - alpha) * value.y;
+                value.z = alpha * input.z + (1.0f - alpha) * value.z;
+            }
+            return value;
+        }
+        void setAlpha(float input){
+            alpha = input;
+        }
+    };
+
+
+
+    std::mutex g_eyeMutex;
     EyeTcpData         g_latestEyeL;     // 受信スレッドが書き込む最新値
     EyeTcpData         g_latestEyeR;     // 受信スレッドが書き込む最新値
+
+    EMAFilter eyeFilterL;
+    EMAFilter eyeFilterR;
+
     std::thread        g_tcpThread;
     std::atomic<bool>  g_tcpThreadRunning{false};
  
@@ -49,7 +77,7 @@ static void TcpReceiveLoop()
             continue;
         }
         buffer[size] = '\0';
- 
+
         std::stringstream ss(buffer);
         std::string item;
         std::vector<std::string> data;
@@ -61,7 +89,7 @@ static void TcpReceiveLoop()
         {
             continue; // 不完全なメッセージは破棄
         }
- 
+
         try
         {
             EyeTcpData dL;
@@ -208,7 +236,7 @@ int windowId = glutCreateWindow("CG Final");
     //視点極座標
     eDist = 5000.0;  //距離
     eDegX = 20.0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
-    
+
     //床頂点座標
     for (int j=0; j<TILE; j++) {
         for (int i=0; i<TILE; i++) {
@@ -217,7 +245,7 @@ int windowId = glutCreateWindow("CG Final");
             fPoint[i][j].z = -fWidth/2.0+j*fWidth/(TILE-1);
         }
     }
-    
+
     cv::Mat textureImage;
     textureImage = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
 
@@ -278,6 +306,10 @@ int windowId = glutCreateWindow("CG Final");
     );
 
     warpInitialized = true;
+
+    //入力した座標のEmaFilterを設定
+    eyeFilterL.setAlpha(1.0f);
+    eyeFilterR.setAlpha(1.0f);
 
 }
 
@@ -363,24 +395,36 @@ void initView(bool isLeftEye) {
     float eyeX ;
     float eyeY ;
     float eyeZ;
+    Vec_3D EyePos;
     if(isLeftEye){
-        eyeX = g_eyeXL;
-        eyeY = g_eyeYL;
-        eyeZ = g_eyeZL;
+        EyePos = {g_eyeXL,g_eyeYL,g_eyeZL};
+        EyePos = eyeFilterL.update(EyePos);
+        eyeX = EyePos.x;
+        eyeY = EyePos.y;
+        eyeZ = EyePos.z;
     } else {
-        eyeX = g_eyeXR;
-        eyeY = g_eyeYR;
-        eyeZ = g_eyeZR;
+        EyePos = {g_eyeXR,g_eyeYR,g_eyeZR};
+        EyePos = eyeFilterR.update(EyePos);
+        eyeX = EyePos.x;
+        eyeY = EyePos.y;
+        eyeZ = EyePos.z;
     }
     //目の位置を変更
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+    if(useTcp){
     pe.x = -eyeX;
     pe.y = eyeY;
     pe.z = eyeZ;
-    std::cout << "Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+    }
+
+    if(isLeftEye){
+        std::cout << "Left Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+    }else{
+        std::cout << "Right Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+    }
     // 視点極座標から直交座標へ変換
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
@@ -443,7 +487,7 @@ void initView(bool isLeftEye) {
     // パラメータ定義
     // float W = 21.7f;      // モニターの横幅 (メートル換算など)
     // float H = 54.0f;      // モニターの縦幅
-    float dd = 80.0f;      // モニターまでの垂直距離 (50cm)
+    float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
     float nearPlane = 90.0f/2.0f;
     float farPlane = 1000.0f;
     //pe = {pe.x, pe.y+testD, pe.z};
@@ -642,7 +686,7 @@ void dispobj(){
     glPushMatrix();
         glTranslated(pointingCell.gx*GRID_SIZE,pointingCell.gy*GRID_SIZE+GRID_SIZE/2,pointingCell.gz*GRID_SIZE);
         glScaled(1.0,1.0,1.0);
-        glutSolidCube(GRID_SIZE);
+        // glutSolidCube(GRID_SIZE);
     glPopMatrix();
 }
 
