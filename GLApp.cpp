@@ -234,6 +234,7 @@ void initGL()
     }
     else
     {
+
         std::cout << "TCPなしモードで起動します" << std::endl;
     }
     //ウィンドウ生成
@@ -307,7 +308,7 @@ int windowId = glutCreateWindow("CG Final");
     glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
     //視点極座標
     eDist = 5000.0;  //距離
-    eDegX = 20.0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
+    eDegX =0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
 
     //床頂点座標
     for (int j=0; j<TILE; j++) {
@@ -385,6 +386,14 @@ int windowId = glutCreateWindow("CG Final");
     // まずはこの値から試して、体感に応じて調整してください。
     eyeFilterL.setParams(/*mincutoff=*/1.0, /*beta=*/0.03);
     eyeFilterR.setParams(/*mincutoff=*/1.0, /*beta=*/0.03);
+
+    //カメラ座標設定
+    camX = pe.x;
+    camY = pe.y/2;
+    camZ = pe.z;
+    cameraToTargetDegY = -90;
+    lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
+    lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
 
 }
 
@@ -626,6 +635,15 @@ void dispobj(){
 
     glutSolidCube(1);
     glPopMatrix();
+    //床
+    glPushMatrix();
+
+    glTranslated(0,0-LookY,-LookZ);
+    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+    glScaled(10,10,10);
+    setColor(0.0, 1.0, 1.0, 1.0);
+    draw_floor(100,100,0,0,0);
+    glPopMatrix();
     double wallDis = 10.92;
 
     
@@ -684,7 +702,7 @@ void DrawWarpedTextures()
 
     double widthfix = 0.2f;//台形補正
     double Xfix = -0.1f;
-    double Lfix = 0;
+    double Lfix = testD;
 
     glBindTexture(GL_TEXTURE_2D, leftTex);
 //左眼用の描画

@@ -2,7 +2,7 @@
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
 //tcpのオンオフ
-bool useTcp = true;
+bool useTcp = false;
 float manualCenterX = 0.0f;
 float manualCenterY = 0.0f;
 float manualEyeDistance = 600.0f;
@@ -15,12 +15,13 @@ Vec_3D pa = {-23.0f/2.0f, 0, 0};  // 左下
 Vec_3D pb = {23.0f/2.0f, 0,0};  // 右下
 Vec_3D pc = {-23.0f/2.0f,36.18f, -36.18f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
-double cameraHeight = 128.0f-51.0f; // 原点とカメラの間の高さ
+double cameraHeight = 128.0f-50.0f; // 原点とカメラの間の高さ
 // 視点（目）
 Vec_3D pe = {0.0, 80, 30};
 //視点極座標
 double eDist, eDegX, eDegY;
 double camX=0, camY=0, camZ=0;
+
 double testD = 0;
 double testB = 0;
 double cameraToTargetDegX = 0;
