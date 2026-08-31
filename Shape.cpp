@@ -37,6 +37,35 @@ void draw_floor(double scale_x,double scale_z,double x,double y,double z)
     glEnd();  //図形終了
         glPopMatrix();
 }
+// groundplane: 平面 ax+by+cz+d=0 の係数 (a,b,c,d)
+// lightpos:    点光源なら (x,y,z,1)、平行光源なら (x,y,z,0)
+void makeShadowMatrix(float shadowMat[4][4],
+                       const float groundplane[4],
+                       const float lightpos[4])
+{
+    GLfloat dot = groundplane[0]*lightpos[0] + groundplane[1]*lightpos[1]
+                + groundplane[2]*lightpos[2] + groundplane[3]*lightpos[3];
+
+    shadowMat[0][0] = dot - lightpos[0]*groundplane[0];
+    shadowMat[1][0] =     - lightpos[0]*groundplane[1];
+    shadowMat[2][0] =     - lightpos[0]*groundplane[2];
+    shadowMat[3][0] =     - lightpos[0]*groundplane[3];
+
+    shadowMat[0][1] =     - lightpos[1]*groundplane[0];
+    shadowMat[1][1] = dot - lightpos[1]*groundplane[1];
+    shadowMat[2][1] =     - lightpos[1]*groundplane[2];
+    shadowMat[3][1] =     - lightpos[1]*groundplane[3];
+
+    shadowMat[0][2] =     - lightpos[2]*groundplane[0];
+    shadowMat[1][2] =     - lightpos[2]*groundplane[1];
+    shadowMat[2][2] = dot - lightpos[2]*groundplane[2];
+    shadowMat[3][2] =     - lightpos[2]*groundplane[3];
+
+    shadowMat[0][3] =     - lightpos[3]*groundplane[0];
+    shadowMat[1][3] =     - lightpos[3]*groundplane[1];
+    shadowMat[2][3] =     - lightpos[3]*groundplane[2];
+    shadowMat[3][3] = dot - lightpos[3]*groundplane[3];
+}
 
 void glMyCylinder(double top, double bottom, double height, double slices)
 {

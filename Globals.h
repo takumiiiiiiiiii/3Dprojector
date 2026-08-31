@@ -18,11 +18,18 @@ extern double fWidth;
 
 // TCPサーバーのインスタンス
 extern TcpServer tcpServer;
+//tcpのオンオフ
+extern bool useTcp;      // true: TCP受信で視点位置を更新, false: TCP未使用
+extern float manualCenterX; // TCPなし時の代替値
+extern float manualCenterY;
+extern float manualEyeDistance;
 //現実の情報
 // モニター四隅
 extern Vec_3D pa;  // 左下
 extern Vec_3D pb;  // 右下
 extern Vec_3D pc;  // 左上
+extern double cameraDis; // 目とカメラの間の距離
+extern double cameraHeight; // 目とカメラの間の距離 
 // 視点（目）
 extern Vec_3D pe;
 //カメラの位置と向き
@@ -51,7 +58,8 @@ extern Vec_3D e;
 //ウィンドウサイズ
 extern int winW;
 extern int winH;
-
+//ウィンドウフルスクリーン
+extern bool isFullScreen;
 extern int mButton;
 extern int mState;
 extern int mX;

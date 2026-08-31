@@ -1,6 +1,7 @@
 #pragma once
 
 void draw_floor(double scale_x,double scale_z,double x,double y,double z);  // 床の表示
+void makeShadowMatrix(float shadowMat[4][4],const float groundplane[4],const float lightpos[4]);
 void glMyCylinder(double top, double bottom, double height, double slices);  //円柱
 void my_drawCylinder(double between,double height,double width);//円柱の設置
 void my_drawCylinder_fall(double between,double height,double width,double y);//倒れた

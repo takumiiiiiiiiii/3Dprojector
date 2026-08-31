@@ -1,18 +1,28 @@
 #include "Globals.h"
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
+//tcpのオンオフ
+bool useTcp = false;
+float manualCenterX = 0.0f;
+float manualCenterY = 0.0f;
+float manualEyeDistance = 600.0f;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
-//現実の情報
-Vec_3D pa = {-21.7f/2.0f, -90.0f, -30.0f};  // 左下
-Vec_3D pb = {21.7f/2.0f, -90.0f, -30.0f};  // 右下
-Vec_3D pc = {-0.3f,-90.0f+38.18f, -30.0f-38.18f};  // 左上
+
+//現実の情報  d
+Vec_3D pa = {-23.0f/2.0f, 0, 0};  // 左下
+Vec_3D pb = {23.0f/2.0f, 0,0};  // 右下
+Vec_3D pc = {-23.0f/2.0f,41.0f, -41.0f};  // 左上
+double cameraDis = 110.0f; // 原点とカメラの間の距離
+double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
+
 // 視点（目）
-Vec_3D pe = {0.0, 0.0, 0.0};
+Vec_3D pe = {0.0, 89, 30};
 //視点極座標
 double eDist, eDegX, eDegY;
 double camX=0, camY=0, camZ=0;
+
 double testD = 0;
 double testB = 0;
 double cameraToTargetDegX = 0;
@@ -24,6 +34,8 @@ bool isZooming = false;
 Vec_3D e; // 視点の位置
 // ウィンドウサイズ
 int winW=1200, winH=800;
+//ウィンドウフルスクリーン
+bool isFullScreen = false;
 //マウス情報
 int mButton, mState, mX, mY;
 //現実世界の情報

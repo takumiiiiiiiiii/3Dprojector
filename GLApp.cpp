@@ -6,23 +6,245 @@
 #include "Ray.h"
 #include "Model.h"
 #include "TcpServer.h"
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+
+
 //初期設定関数
+namespace {
+    struct EyeTcpData {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        bool valid = false;   // まだ一度もデータを受信していない場合は false
+    };
+
+    // ------------------------------------------------------------------
+    // One Euro Filter (Casiez et al. 2012)
+    // 静止時はしっかり平滑化してジッターを抑え、素早く動いたときは
+    // カットオフ周波数を自動で上げて遅延を抑える適応的ローパスフィルタ。
+    // ------------------------------------------------------------------
+    struct OneEuroFilter1D {
+        double mincutoff; // 最小カットオフ周波数(Hz)。小さいほど静止時に滑らか(遅延は増える)
+        double beta;      // 速度に対する感度。大きいほど速い動きに素早く追従する
+        double dcutoff;   // 速度推定用ローパスのカットオフ(Hz)。通常1.0で良い
+
+        double x_prev = 0.0;
+        double dx_prev = 0.0;
+        bool   initialized = false;
+
+        OneEuroFilter1D(double mincutoff_ = 10.0, double beta_ = 0.0, double dcutoff_ = 1.0)
+            : mincutoff(mincutoff_), beta(beta_), dcutoff(dcutoff_) {}
+
+        static double alpha(double cutoff, double dt) {
+            double tau = 1.0 / (2.0 * M_PI * cutoff);
+            return 1.0 / (1.0 + tau / dt);
+        }
+
+        double filter(double x, double dt) {
+            if (dt <= 0.0) {
+                dt = 1.0 / 60.0; // dtが異常な場合のガード
+            }
+
+            if (!initialized) {
+                x_prev = x;
+                dx_prev = 0.0;
+                initialized = true;
+                return x;
+            }
+
+            // 1. 速度を推定してローパス
+            double dx = (x - x_prev) / dt;
+            double a_d = alpha(dcutoff, dt);
+            double dx_hat = a_d * dx + (1.0 - a_d) * dx_prev;
+
+            // 2. 速度に応じてカットオフ周波数を上げる(速いほど遅延を減らす)
+            double cutoff = mincutoff + beta * std::fabs(dx_hat);
+            double a = alpha(cutoff, dt);
+            double x_hat = a * x + (1.0 - a) * x_prev;
+
+            x_prev = x_hat;
+            dx_prev = dx_hat;
+            return x_hat;
+        }
+
+        void reset() {
+            initialized = false;
+        }
+    };
+
+    struct OneEuroFilter3D {
+        OneEuroFilter1D fx, fy, fz;
+        std::chrono::steady_clock::time_point lastTime;
+        bool hasLastTime = false;
+
+        OneEuroFilter3D(double mincutoff = 1.0, double beta = 0.0, double dcutoff = 1.0)
+            : fx(mincutoff, beta, dcutoff), fy(mincutoff, beta, dcutoff), fz(mincutoff, beta, dcutoff) {}
+
+        Vec_3D update(const Vec_3D input) {
+            auto now = std::chrono::steady_clock::now();
+            double dt;
+            if (!hasLastTime) {
+                dt = 1.0 / 60.0; // 初回は仮のdt(60fps想定)
+                hasLastTime = true;
+            } else {
+                dt = std::chrono::duration<double>(now - lastTime).count();
+            }
+            lastTime = now;
+
+            Vec_3D out;
+            out.x = static_cast<float>(fx.filter(input.x, dt));
+            out.y = static_cast<float>(fy.filter(input.y, dt));
+            out.z = static_cast<float>(fz.filter(input.z, dt));
+            return out;
+        }
+
+        void setParams(double mincutoff, double beta, double dcutoff = 1.0) {
+            fx.mincutoff = fy.mincutoff = fz.mincutoff = mincutoff;
+            fx.beta = fy.beta = fz.beta = beta;
+            fx.dcutoff = fy.dcutoff = fz.dcutoff = dcutoff;
+        }
+
+        void reset() {
+            fx.reset(); fy.reset(); fz.reset();
+            hasLastTime = false;
+        }
+    };
+
+
+    std::mutex g_eyeMutex;
+    EyeTcpData         g_latestEyeL;     // 受信スレッドが書き込む最新値
+    EyeTcpData         g_latestEyeR;     // 受信スレッドが書き込む最新値
+
+    OneEuroFilter3D eyeFilterL;
+    OneEuroFilter3D eyeFilterR;
+
+    std::thread        g_tcpThread;
+    std::atomic<bool>  g_tcpThreadRunning{false};
+ 
+    // このフレームで実際に使う目位置（display() の先頭で1回だけ確定させる）
+    float g_eyeXL = 0.0f;
+    float g_eyeYL = 0.0f;
+    float g_eyeZL = 0.0f;
+    float g_eyeXR = 0.0f;
+    float g_eyeYR = 0.0f;
+    float g_eyeZR = 0.0f;
+}
+ 
+// 受信専用スレッドの処理本体
+static void TcpReceiveLoop()
+{
+    char buffer[1024];
+    while (g_tcpThreadRunning.load())
+    {
+        int size = tcpServer.Receive(buffer, sizeof(buffer) - 1);
+        if (size <= 0)
+        {
+            // データがまだ来ていない/切断された場合は少し待ってリトライ
+            // （busy loopでCPUを無駄に使わないため）
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            continue;
+        }
+        buffer[size] = '\0';
+
+        std::stringstream ss(buffer);
+        std::string item;
+        std::vector<std::string> data;
+        while (std::getline(ss, item, ','))
+        {
+            data.push_back(item);
+        }
+        if (data.size() < 3)
+        {
+            continue; // 不完全なメッセージは破棄
+        }
+
+        try
+        {
+            EyeTcpData dL;
+            dL.x = std::stof(data[0]);
+            dL.y = std::stof(data[1]);
+            dL.z = std::stof(data[2]);
+            EyeTcpData dR;
+            dR.x = std::stof(data[3]);
+            dR.y = std::stof(data[4]);
+            dR.z = std::stof(data[5]);
+            dR.valid = true;
+            dL.valid = true;
+
+            std::lock_guard<std::mutex> lock(g_eyeMutex);
+            g_latestEyeL = dL;
+            g_latestEyeR = dR;
+        }
+        catch (const std::exception&)
+        {
+            // パース失敗（壊れたメッセージ等）は無視して次を待つ
+            continue;
+        }
+    }
+}
+
+static void UpdateEyePositionFromShared()
+{
+    if (useTcp)
+    {
+        EyeTcpData dL, dR;
+        {
+            std::lock_guard<std::mutex> lock(g_eyeMutex);
+            dL = g_latestEyeL;
+            dR = g_latestEyeR;
+        }
+        if (dL.valid)
+        {
+            g_eyeXL = dL.x;
+            g_eyeYL = -dL.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeZL = dL.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
+        }
+        if (dR.valid)
+        {
+            g_eyeXR = dR.x;
+            g_eyeYR = -dR.y + cameraHeight; // カメラの位置を考慮して目の位置を調整
+            g_eyeZR = dR.z - cameraDis;    // カメラの位置を考慮して目の位置を調整
+        }   
+        // d.valid が false（まだ一度も受信していない）の場合は
+        // 前フレームの値をそのまま維持する＝映像が飛ばない
+    }
+    else
+    {
+        // TCPなし時は手動値（キーボード操作等で更新可能）を使う
+        g_eyeXL = manualCenterX;
+        g_eyeYL = manualCenterY;
+        g_eyeZL = manualEyeDistance;
+    }
+}
+
 void initGL()
 {
-    //TCPサーバーの初期化
-    if(!tcpServer.Start(50000))
+    if (useTcp)
     {
-        std::cerr << "TCPサーバーの起動に失敗しました" << std::endl;
-        exit(1);
+        if (!tcpServer.Start(50000))
+        {
+            std::cerr << "TCPサーバーの起動に失敗しました" << std::endl;
+            exit(1);
+        }
+        std::cout << "TCPサーバーが起動しました" << std::endl;
     }
-    std::cout << "TCPサーバーが起動しました" << std::endl;
+    else
+    {
 
-    
-
+        std::cout << "TCPなしモードで起動します" << std::endl;
+    }
     //ウィンドウ生成
+    
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
-    glutInitWindowSize(1200, 800);  //ウィンドウサイズの指定
-     int windowId = glutCreateWindow("CG Final");
+glutInitWindowSize(1920,1080);
+int windowId = glutCreateWindow("CG Final");
+
+// フルスクリーン
+
     std::cout << "windowId: " << windowId << std::endl;
   
     const GLubyte* version = glGetString(GL_VERSION);
@@ -32,6 +254,8 @@ void initGL()
     } else {
         std::cout << "GL_VERSION: " << reinterpret_cast<const char*>(version) << std::endl;
     }
+    g_tcpThreadRunning = true;
+    g_tcpThread = std::thread(TcpReceiveLoop);
 //     glutCreateWindow("CG Final");  //ウィンドウ生成
 // std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 
@@ -63,7 +287,7 @@ void initGL()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  //ブレンディング方法指定（アルファブレンディング）
     //陰影付け・光源
     glEnable(GL_LIGHTING);  //陰影付け有効化
-    GLfloat col[4];  //光源設定用配列
+    GLfloat amb[4],col[4];  //光源設定用配列
     //ボクセルの初期化
     InitVoxcels();
     //光源0
@@ -71,21 +295,21 @@ void initGL()
     col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
     glLightfv(GL_LIGHT0, GL_DIFFUSE, col);  //拡散反射対象
     glLightfv(GL_LIGHT0, GL_SPECULAR, col);  //鏡面反射対象
-    col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
-    glLightfv(GL_LIGHT0, GL_AMBIENT, col);  //環境光対象
+    amb[0] = 0.2; amb[1] = 0.2; amb[2] = 0.2; amb[3] = 1.0;
+    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);  //環境光対象
     glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
-    //光源1
-    glEnable(GL_LIGHT1);  //光源1有効化
-    col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, col);  //拡散反射対象
-    glLightfv(GL_LIGHT1, GL_SPECULAR, col);  //鏡面反射対象
-    col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
-    glLightfv(GL_LIGHT1, GL_AMBIENT, col);  //環境光対象
-    glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
+    // //光源1
+    // glEnable(GL_LIGHT1);  //光源1有効化
+    // col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
+    // glLightfv(GL_LIGHT1, GL_DIFFUSE, col);  //拡散反射対象
+    // glLightfv(GL_LIGHT1, GL_SPECULAR, col);  //鏡面反射対象
+    // col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
+    // glLightfv(GL_LIGHT1, GL_AMBIENT, col);  //環境光対象
+    // glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
     //視点極座標
     eDist = 5000.0;  //距離
-    eDegX = 20.0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
-    
+    eDegX =0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
+
     //床頂点座標
     for (int j=0; j<TILE; j++) {
         for (int i=0; i<TILE; i++) {
@@ -94,7 +318,7 @@ void initGL()
             fPoint[i][j].z = -fWidth/2.0+j*fWidth/(TILE-1);
         }
     }
-    
+
     cv::Mat textureImage;
     textureImage = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
 
@@ -156,26 +380,33 @@ void initGL()
 
     warpInitialized = true;
 
+    // 目位置のOne Euro Filterパラメータ設定
+    // mincutoff: 静止時のジッター抑制の強さ（小さいほど滑らかだが遅延増）
+    // beta    : 速い動きへの追従性（大きいほど遅延が減るがジッター抑制が弱まる）
+    // まずはこの値から試して、体感に応じて調整してください。
+    eyeFilterL.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
+    eyeFilterR.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
+
+    //カメラ座標設定
+    camX = pe.x;
+    camY = pe.y/2;
+    camZ = pe.z;
+    cameraToTargetDegY = -90;
+    lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
+    lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
+
 }
 
 //ディスプレイコールバック関数
 void display()
 {
+    UpdateEyePositionFromShared();
     initView(true);
     // オブジェクト描画
     dispobj();
     //テクスチャ
     glBindTexture(GL_TEXTURE_2D, leftTex);
-    glCopyTexSubImage2D(
-        GL_TEXTURE_2D,
-        0,
-        0,
-        0,
-        0,
-        0,
-        winW/2,
-        winH
-    );
+    glCopyTexSubImage2D(GL_TEXTURE_2D,0,0,0,0,0,winW/2,winH);
     initView(false);
     // オブジェクト描画
     dispobj();
@@ -184,16 +415,7 @@ void display()
     //テクスチャ
     glBindTexture(GL_TEXTURE_2D, rightTex);
 
-    glCopyTexSubImage2D(
-        GL_TEXTURE_2D,
-        0,
-        0,
-        0,
-        winW/2,
-        0,
-        winW/2,
-        winH
-    );
+    glCopyTexSubImage2D(GL_TEXTURE_2D,0,0,0,winW/2,0,winW/2,winH);
 
     GLenum err = glGetError();
     if(!NormalView){
@@ -203,35 +425,41 @@ void display()
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
-    //tcpの受信
-    char buffer[1024];
-    int size = tcpServer.Receive(buffer, sizeof(buffer)-1);
-
-    buffer[size] = '\0';
-
-    //std::cout << "受信: " << buffer << std::endl;
-    // 受信データをカンマで分割して変数に格納
-    std::stringstream ss(buffer);
-    std::string item;
-    std::vector<std::string> data;
-
-    while (std::getline(ss, item, ','))
-    {
-        data.push_back(item);
+    // 【変更なし】ここでTCP受信は行わない。display()先頭で確定させた
+    // g_eyeX/Y/Z をそのまま使うだけ（左目・右目で同じ値になる）。
+    float eyeX ;
+    float eyeY ;
+    float eyeZ;
+    Vec_3D EyePos;
+    if(isLeftEye){
+        EyePos = {g_eyeXL,g_eyeYL,g_eyeZL};
+        EyePos = eyeFilterL.update(EyePos);
+        eyeX = EyePos.x;
+        eyeY = EyePos.y;
+        eyeZ = EyePos.z;
+    } else {
+        EyePos = {g_eyeXR,g_eyeYR,g_eyeZR};
+        EyePos = eyeFilterR.update(EyePos);
+        eyeX = EyePos.x;
+        eyeY = EyePos.y;
+        eyeZ = EyePos.z;
     }
-    float centerX = std::stof(data[0]);
-    float centerY = std::stof(data[1]);
-    float eyeDistance = std::stof(data[2]);
-
-    std::cout <<"X座標:"<< centerX << std::endl;
-    std::cout << "Y座標:" << centerY << std::endl;
-    std::cout << "目の間:" << eyeDistance << std::endl;
-
+    //目の位置を変更
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
+    if(useTcp){
+    pe.x = -eyeX;
+    pe.y = eyeY;
+    pe.z = eyeZ;
+    }
 
+    if(isLeftEye){
+        std::cout << "Left Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+    }else{
+        std::cout << "Right Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+    }
     // 視点極座標から直交座標へ変換
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
@@ -250,12 +478,6 @@ void initView(bool isLeftEye) {
         -1.0, 1.0,
         1.0, 10000.0
         );
-        // gluPerspective(
-        //     40.0,
-        //     aspect,
-        //     1.0,
-        //     10000.0
-        // );
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         gluLookAt(
@@ -263,15 +485,9 @@ void initView(bool isLeftEye) {
             lookX+camX, lookY+ camY, lookZ+camZ,
             0.0, 1.0, 0.0
         );
-        
-        //  gluLookAt(
-        //     e.x  +camX , e.y + camY, e.z + camZ,
-        //     camX+e.x, camY+e.y, camZ+e.z,
-        //     0.0, 1.0, 0.0
-        // );
         return;
     }
-    //glViewport(0, 0, viewW, viewH);
+    
 
     if (isLeftEye) {
         glViewport(0, 0, viewW/2.0f, viewH);
@@ -284,46 +500,55 @@ void initView(bool isLeftEye) {
 
 
 
-
     // 投影変換
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    // double fruH = 33.0f/4.0f;
-    // double fruW = 21.7f/4.0f;
-    // double winDis = 90.0f/2.0f;
-    // パラメータ定義
-    float W = 21.7f;      // モニターの横幅 (メートル換算など)
-    float H = 54.0f;      // モニターの縦幅
     float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
     float nearPlane = 90.0f/2.0f;
     float farPlane = 1000.0f;
 
-    // 1. プロジェクション行列 (Frustum) の計算
-    float left   = -(W / 2.0f) * (nearPlane / dd);
-    float right  =  (W / 2.0f) * (nearPlane / dd);
-    float bottom = -(H / 2.0f) * (nearPlane / dd);
-    float top    =  (H / 2.0f) * (nearPlane / dd);
-
     // 2. ビュー行列 (LookAt) の計算
     // モニターの四隅の座標を定義
+    // モニターの右方向ベクトルを計算
     Vec_3D vr = vectorNormalize(diffVec(pb, pa));
+    // モニターの上方向ベクトルを計算
     Vec_3D vu = vectorNormalize(diffVec(pc, pa));
+    // モニターの法線ベクトルを計算
     Vec_3D vn = vectorNormalize(crossProduct(vr, vu));
+
     //スクリーン中心
-    Vec_3D center = diffVec(addVec(pb,pc),pa);
     Vec_3D pd = addVec(pb, diffVec(pc, pa));
 
-    center.x = (pa.x + pb.x + pc.x + pd.x) / 4.0;
-    center.y = (pa.y + pb.y + pc.y + pd.y) / 4.0;
-    center.z = (pa.z + pb.z + pc.z + pd.z) / 4.0;
+    Vec_3D center;
 
-     glFrustum(
-     bottom, //left
-     top, //Right
-     left,//bottom
-     right, //top
-     nearPlane,
-     farPlane
+    center.x = (pa.x + pb.x + pc.x + pd.x) * 0.25f;
+    center.y = (pa.y + pb.y + pc.y + pd.y) * 0.25f;
+    center.z = (pa.z + pb.z + pc.z + pd.z) * 0.25f;
+    // スクリーンの左下、右下、左上の座標を定義
+    Vec_3D va = diffVec(pa, pe);//スクリーンの左下から視点へのベクトル
+    Vec_3D vb = diffVec(pb, pe);//スクリーンの右下から視点へのベクトル
+    Vec_3D vc = diffVec(pc, pe);//スクリーンの左上から視点へのベクトル
+
+    //
+    double d = -innerProduct(va, vn);
+    //ベクトルの内積を使って、スクリーンの左、右、下、上の座標を計算
+    double left =
+        innerProduct(vr, va) * nearPlane / d;//
+
+    double right =
+        innerProduct(vr, vb) * nearPlane / d;
+
+    double bottom =
+        innerProduct(vu, va) * nearPlane / d;
+
+    double top =
+        innerProduct(vu, vc) * nearPlane / d;
+
+    glFrustum(
+    -top,    // left
+    -bottom, // right
+    left, right,
+    nearPlane, farPlane
     );
 
     // ビューイング変換準備
@@ -332,33 +557,51 @@ void initView(bool isLeftEye) {
 
     double LookY = 0;
     double LookZ = 0;
-    double LookYp = -90;
+    double LookYp  = -90;
     double LookZp = -65.36;
     double angle = 45.0f;
+
+    center = diffVec(pe, vn);
     if (isLeftEye) {
+        Vec_3D eye = pe;
         gluLookAt(
-            eyeOffset, LookY,LookZ,
-            eyeOffset,LookYp,LookZp,
-            1.0, 0.0, 0.0
+            eye.x+eyeOffset/2,eye.y,eye.z,
+            center.x+eyeOffset, center.y, center.z,
+            1,0,0
         );
     } else {
+        Vec_3D eye = pe;
         gluLookAt(
-            -eyeOffset, LookY, LookZ,
-            -eyeOffset,LookYp,LookZp,
-            1.0, 0.0, 0.0
+            eye.x-eyeOffset/2,eye.y,eye.z,
+            center.x-eyeOffset, center.y, center.z,
+            1,0,0
         );
     }
 }
 
 void dispobj(){
     //光源配置
-    GLfloat lightPos0[] = {500.0, 2000.0, 2500.0, 1.0};  //光源座標(点光源)
+    GLfloat lightPos0[] = {30, 200,100, 1.0};  //光源座標(点光源)
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);  //光源配置
-    GLfloat lightPos1[] = {-500.0, 2000.0, -500.0, 1.0};  //光源座標(点光源)
-    glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
-    GLfloat lightPos3[] = {0, 2000.0, -600, 1.0};  //光源座標(点光源)
-    glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
+    // GLfloat lightPos1[] = {-500.0, 2000.0, -500.0, 1.0};  //光源座標(点光源)
+    // glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
+    // GLfloat lightPos3[] = {0, 2000.0, -600, 1.0};  //光源座標(点光源)
+    // glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
 
+    //ボックス座標
+    //目標物体
+    double LookY = 0;
+    double LookZ = 22;
+    double boxsize = 10;
+    double boxhalf = boxsize/2;
+    Vec_3D boxPos = {0,boxsize-LookY,-LookZ};
+    //床の座標
+    float floorY = -0.1;
+    float groundPlane[4] = { 0.0f, 1.0f, 0.0f, -floorY }; // floorYはdraw_floorに渡すy
+    float shadowMat[4][4];
+
+    //シャドウマップ
+    makeShadowMatrix(shadowMat, groundPlane, lightPos0);
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
     
@@ -372,9 +615,6 @@ void dispobj(){
     glTranslatef(-objectSize / 2.0f,
                 0,
                 -objectSize / 2.0f);
-    // DrawVoxelObject(VOXEL_SIZE);
-    // penguin(0,0);
-    // model.Draw();
     glPopMatrix();
 
     //ボクセル
@@ -386,66 +626,59 @@ void dispobj(){
                 0,
                 0);
     penguin_animation();
-    //penguin(0,0);
     model.Draw();
     glPopMatrix();
     //3Dモデル
     glPushMatrix();
-    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
     glTranslated(0,0,-3000);
     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
     glScaled(150.0,150.0,150.0);
 
     setColor(1.0, 1.0, 1.0, 1.0);
-    //model.Draw();
     
     glPopMatrix();
-    //目標物体
-    double LookY = 90;
-    double LookZ = 50;
-    glPushMatrix();
-    // glRotated(eDegY, 0.0, 1.0, 0.0);  //こっちに向く
-
-    glTranslated(0,5-LookY,-LookZ);
-    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(20,10,10);
-    setColor(0.0, 1.0, 0.0, 1.0);
-   //draw_floor(1,1,0,0,0);
-    setColor(1.0, 1.0, 1.0, 1.0);
-
-    glutSolidCube(1);
-    glPopMatrix();
-    double wallDis = 10.92;
-
     //床
     glPushMatrix();
-    glTranslated(0,-LookY,-LookZ);
-    glRotated(180, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
-//    draw_floor(1,1,0,0,0);
+        glTranslated(0,floorY,-LookZ);
+        glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+        glScaled(10,10,10);
+        setColor(0.0, 1.0, 1.0, 1.0);
+        draw_floor(100,100,0,0,0);
     glPopMatrix();
-    //右壁
-    glPushMatrix();
-    glTranslated(wallDis,-LookY,-LookZ);
-    glRotated(90, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
-//    draw_floor(1,1,0,0,0);
-    glPopMatrix();
-    //左壁
-    glPushMatrix();
-    glTranslated(-wallDis,-LookY,-LookZ);
-    glRotated(-90, 0.0, 0.0, 1.0);  //こっちに向く
-    glMyDrawCheckerFloor(47, 25);
-    glPopMatrix();
-     //おくかべ
-    glPushMatrix();
+    //影を描画(床の上に潰したオブジェクトを暗い色で)
+    //glColorの状態漏れを防ぐ
+    glPushAttrib(GL_CURRENT_BIT);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f); // 半透明の黒
 
-    glTranslated(0,-LookY+12,-LookZ-wallDis*2);
-    glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
-    glScaled(1.0,7.0,1.0);
-    glMyDrawCheckerFloor(27, 25);
-//    draw_floor(1,1,0,0,0);
+        glDepthMask(GL_FALSE); // 床とのZファイティング防止(深度書き込みだけ止める)
+
+        glPushMatrix();
+            glMultMatrixf((GLfloat*)shadowMat);
+            glTranslated(boxPos.x,boxPos.y,boxPos.z);
+            glutSolidCube(10);
+        glPopMatrix();
+
+        glDepthMask(GL_TRUE);
+        glEnable(GL_LIGHTING);
+        glEnable(GL_DEPTH_TEST);
+    glPopAttrib();
+    //目標物体
+    glPushMatrix();
+        glTranslated(boxPos.x,boxPos.y,boxPos.z);
+        glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+        glScaled(10,10,10);
+        setColor(0.0, 1.0, 0.0, 1.0);
+        glutSolidCube(1);
     glPopMatrix();
+
+    double wallDis = 10.92;
+
+    double FloorSize = 47*2;
+    double FloorChexSize = 25*2;
     if(cubeDispenser.GetPlacedCubes().size()>0){
         // モデル描画
         for(auto cube : cubeDispenser.GetPlacedCubes()){
@@ -461,10 +694,7 @@ void dispobj(){
     glPushMatrix();
         glTranslated(pointingCell.gx*GRID_SIZE,pointingCell.gy*GRID_SIZE+GRID_SIZE/2,pointingCell.gz*GRID_SIZE);
         glScaled(1.0,1.0,1.0);
-        glutSolidCube(GRID_SIZE);
     glPopMatrix();
-
-
 }
 
 void DrawWarpedTextures()
@@ -477,26 +707,6 @@ void DrawWarpedTextures()
         viewH = static_cast<int>(winH * rDisp);
         aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
         glViewport(0, 0, viewW,viewH);
-    //     glMatrixMode(GL_PROJECTION);
-    //     glLoadIdentity();
-    //     // glFrustum(
-    //     // -aspect, aspect,
-    //     // -1.0, 1.0,
-    //     // 1.0, 10000.0
-    //     // );
-    //     gluPerspective(
-    //         40.0,
-    //         aspect,
-    //         1.0,
-    //         10000.0
-    //     );
-    //     glMatrixMode(GL_MODELVIEW);
-    //     glLoadIdentity();
-    //     gluLookAt(
-    //         camX ,camY,camZ,
-    //         lookX+camX, lookY+ camY, lookZ+camZ,
-    //         0.0, 1.0, 0.0
-    //     );
     glClear(
         GL_COLOR_BUFFER_BIT |
         GL_DEPTH_BUFFER_BIT
@@ -522,11 +732,7 @@ void DrawWarpedTextures()
 
     double widthfix = 0.2f;//台形補正
     double Xfix = -0.1f;
-    double Lfix = 0;
-
-    //double widthfix = testB;//台形補正
-    //double Xfix = testB;
-    // double Lfix = testB;
+    double Lfix = testD;
 
     glBindTexture(GL_TEXTURE_2D, leftTex);
 //左眼用の描画
@@ -539,11 +745,9 @@ void DrawWarpedTextures()
     glVertex2f(0.0,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
-    // glVertex2f(topHalf*0.5f,1.0f);
     glVertex2f(0.0,1.0f-widthfix+Xfix+Lfix);
     glTexCoord2f(0,1);
     glVertex2f(-1.0f,1.0f);
-    // glVertex2f(-topHalf*0.5f,1.0f);
 
     glEnd();
 
@@ -559,7 +763,6 @@ void DrawWarpedTextures()
     glVertex2f(1.0f,-1.0f+widthfix+Xfix);
 
     glTexCoord2f(1,1);
-    // glVertex2f(topHalf*0.5f,1.0f);
     glVertex2f(1.0f,1.0f-widthfix+Xfix+Lfix);
     glTexCoord2f(0,1);
     glVertex2f(0.0f,1.0f);
@@ -575,14 +778,35 @@ void DrawWarpedTextures()
 //リサイズコールバック関数
 void reshape(int w, int h)
 {
-    int viewW = static_cast<int>(w * rDisp / 2.0);
-    int viewH = static_cast<int>(h * rDisp);
-    glViewport(0, 0, viewW, viewH);  //ウィンドウ内の描画領域(ビューポート)の指定
+     glViewport(0, 0, w, h);
 
-    //投影変換
-    glMatrixMode(GL_PROJECTION);  //カレント行列の設定
-    glLoadIdentity();  //カレント行列初期化
-    gluPerspective(40.0, (double)viewW/(double)viewH, 1.0, 10000.0);  //投影変換行列生成
+    // 左テクスチャ
+    glBindTexture(GL_TEXTURE_2D, leftTex);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        w / 2,
+        h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    // 右テクスチャ
+    glBindTexture(GL_TEXTURE_2D, rightTex);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        w / 2,
+        h,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
     
     winW = w; winH = h;  //ウィンドウサイズをグローバル変数に格納
 
@@ -594,12 +818,6 @@ void timer(int value)
 {
     glutPostRedisplay();  //ディスプレイイベント強制発生
     glutTimerFunc(1000/f, timer, 0);  //タイマー再設定
-
-    // //アニメーション
-    // penguin_animation();
-    // alligator_animation();
-    // ostrich_animation();
-    // monkey_animation();
 }
 
 void mouseMove(int x,int y){
@@ -655,7 +873,6 @@ void mouse(int button, int state, int x, int y)
         pointingCell.color = cubeDispenser.GetCurrCubeColor();
         cubeDispenser.AddCube(pointingCell);
 	}
-   // std::cout << "Mouse Button: " << mButton << ", State: " << mState << ", X: " << mX << ", Y: " << mY << std::endl;
     
 }
 
@@ -678,21 +895,17 @@ void motion(int x, int y)
         //カメラの右方向ベクトルを計算
         Vec_3D right = crossProduct(cameraVec, makeVec(0,1,0));
         right = vectorNormalize(right);
-        // vectorNormalize
         camX += (mX-x)*20*right.x;  //マウス横方向→水平角
         camY -= (mY-y)*20;  //マウス縦方向→垂直角
         camZ += (mX-x)*20*right.z;  //マウス縦方向→垂直角
         }
     }
-    //double cameraDis = vectorLen(cameraVec);
     if (mButton == GLUT_RIGHT_BUTTON) {
             // //右ドラッグでカメラを回転
         cameraToTargetDegX += (mY-y)*0.1;
         cameraToTargetDegY += (mX-x)*0.1;
         lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
         lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
-        // lookX = cameraDis * cos(45 * M_PI / 180.0);
-        // lookZ = cameraDis * cos(45 * M_PI / 180.0);
         lookY += (y - mY) * 10.0;
     }
     
@@ -727,6 +940,14 @@ void keyboard(unsigned char key, int x, int y)
             col = {1.0,0.0,0.0};
             cubeDispenser.ChangeCurrColor(col);
             break;
+        case 'f':
+            isFullScreen = !isFullScreen;
+            if (isFullScreen) {
+               glutFullScreen();
+            } else {
+               glutReshapeWindow(winW, winH);
+            }
+            break;
         case 'g':
             col = {0.0,1.0,0.0};
             cubeDispenser.ChangeCurrColor(col);
@@ -739,11 +960,11 @@ void keyboard(unsigned char key, int x, int y)
             isZooming = !isZooming;
             break;
         case 'w':
-            eyeOffset += 0.1;
+            eyeOffset += 0.01;
             break;
         case 's':
             if(NormalView == false){
-                eyeOffset -= 0.1;
+                eyeOffset -= 0.01;
             }else{
                 cubeDispenser.SaveToFile("placed_cubes.txt");
             }
@@ -778,18 +999,6 @@ void keyboard(unsigned char key, int x, int y)
         case '-':
             eDist += 100.0;
             break;
-        // case GLUT_KEY_UP:
-        //     std::cout << "↑" << std::endl;
-            
-        //     break;
-        // case GLUT_KEY_DOWN:
-        //     std::cout << "↓" << std::endl;
-        //     break;
-        // case GLUT_KEY_LEFT:
-        //     std::cout << "←" << std::endl;
-        //     break;
-        // case GLUT_KEY_RIGHT:
-        //     std::cout << "→" << std::endl;
             break;
         default:
             break;
