@@ -287,7 +287,7 @@ int windowId = glutCreateWindow("CG Final");
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  //ブレンディング方法指定（アルファブレンディング）
     //陰影付け・光源
     glEnable(GL_LIGHTING);  //陰影付け有効化
-    GLfloat col[4];  //光源設定用配列
+    GLfloat amb[4],col[4];  //光源設定用配列
     //ボクセルの初期化
     InitVoxcels();
     //光源0
@@ -295,17 +295,17 @@ int windowId = glutCreateWindow("CG Final");
     col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
     glLightfv(GL_LIGHT0, GL_DIFFUSE, col);  //拡散反射対象
     glLightfv(GL_LIGHT0, GL_SPECULAR, col);  //鏡面反射対象
-    col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
-    glLightfv(GL_LIGHT0, GL_AMBIENT, col);  //環境光対象
+    amb[0] = 0.2; amb[1] = 0.2; amb[2] = 0.2; amb[3] = 1.0;
+    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);  //環境光対象
     glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
-    //光源1
-    glEnable(GL_LIGHT1);  //光源1有効化
-    col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, col);  //拡散反射対象
-    glLightfv(GL_LIGHT1, GL_SPECULAR, col);  //鏡面反射対象
-    col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
-    glLightfv(GL_LIGHT1, GL_AMBIENT, col);  //環境光対象
-    glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
+    // //光源1
+    // glEnable(GL_LIGHT1);  //光源1有効化
+    // col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
+    // glLightfv(GL_LIGHT1, GL_DIFFUSE, col);  //拡散反射対象
+    // glLightfv(GL_LIGHT1, GL_SPECULAR, col);  //鏡面反射対象
+    // col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
+    // glLightfv(GL_LIGHT1, GL_AMBIENT, col);  //環境光対象
+    // glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
     //視点極座標
     eDist = 5000.0;  //距離
     eDegX =0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
@@ -384,8 +384,8 @@ int windowId = glutCreateWindow("CG Final");
     // mincutoff: 静止時のジッター抑制の強さ（小さいほど滑らかだが遅延増）
     // beta    : 速い動きへの追従性（大きいほど遅延が減るがジッター抑制が弱まる）
     // まずはこの値から試して、体感に応じて調整してください。
-    eyeFilterL.setParams(/*mincutoff=*/1.0, /*beta=*/0.03);
-    eyeFilterR.setParams(/*mincutoff=*/1.0, /*beta=*/0.03);
+    eyeFilterL.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
+    eyeFilterR.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
 
     //カメラ座標設定
     camX = pe.x;
@@ -581,13 +581,27 @@ void initView(bool isLeftEye) {
 
 void dispobj(){
     //光源配置
-    GLfloat lightPos0[] = {500.0, 2000.0, 2500.0, 1.0};  //光源座標(点光源)
+    GLfloat lightPos0[] = {30, 200,100, 1.0};  //光源座標(点光源)
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);  //光源配置
-    GLfloat lightPos1[] = {-500.0, 2000.0, -500.0, 1.0};  //光源座標(点光源)
-    glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
-    GLfloat lightPos3[] = {0, 2000.0, -600, 1.0};  //光源座標(点光源)
-    glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
+    // GLfloat lightPos1[] = {-500.0, 2000.0, -500.0, 1.0};  //光源座標(点光源)
+    // glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
+    // GLfloat lightPos3[] = {0, 2000.0, -600, 1.0};  //光源座標(点光源)
+    // glLightfv(GL_LIGHT1, GL_POSITION, lightPos1);  //光源配置
 
+    //ボックス座標
+    //目標物体
+    double LookY = 0;
+    double LookZ = 22;
+    double boxsize = 10;
+    double boxhalf = boxsize/2;
+    Vec_3D boxPos = {0,boxsize-LookY,-LookZ};
+    //床の座標
+    float floorY = -0.1;
+    float groundPlane[4] = { 0.0f, 1.0f, 0.0f, -floorY }; // floorYはdraw_floorに渡すy
+    float shadowMat[4][4];
+
+    //シャドウマップ
+    makeShadowMatrix(shadowMat, groundPlane, lightPos0);
     //----------床パネル----------
     setColor(0.2, 1.0, 0.2, 1.0);
     
@@ -623,30 +637,46 @@ void dispobj(){
     setColor(1.0, 1.0, 1.0, 1.0);
     
     glPopMatrix();
-    //目標物体
-    double LookY = 0;
-    double LookZ = 21;
-    glPushMatrix();
-
-    glTranslated(0,5-LookY,-LookZ);
-    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(10,10,10);
-    setColor(0.0, 1.0, 0.0, 1.0);
-
-    glutSolidCube(1);
-    glPopMatrix();
     //床
     glPushMatrix();
-
-    glTranslated(0,0-LookY,-LookZ);
-    glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-    glScaled(10,10,10);
-    setColor(0.0, 1.0, 1.0, 1.0);
-    draw_floor(100,100,0,0,0);
+        glTranslated(0,floorY,-LookZ);
+        glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+        glScaled(10,10,10);
+        setColor(0.0, 1.0, 1.0, 1.0);
+        draw_floor(100,100,0,0,0);
     glPopMatrix();
+    //影を描画(床の上に潰したオブジェクトを暗い色で)
+    //glColorの状態漏れを防ぐ
+    glPushAttrib(GL_CURRENT_BIT);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f); // 半透明の黒
+
+        glDepthMask(GL_FALSE); // 床とのZファイティング防止(深度書き込みだけ止める)
+
+        glPushMatrix();
+            glMultMatrixf((GLfloat*)shadowMat);
+            glTranslated(boxPos.x,boxPos.y,boxPos.z);
+            glutSolidCube(10);
+        glPopMatrix();
+
+        glDepthMask(GL_TRUE);
+        glEnable(GL_LIGHTING);
+        glEnable(GL_DEPTH_TEST);
+    glPopAttrib();
+    //目標物体
+    glPushMatrix();
+        glTranslated(boxPos.x,boxPos.y,boxPos.z);
+        glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+        glScaled(10,10,10);
+        setColor(0.0, 1.0, 0.0, 1.0);
+        glutSolidCube(1);
+    glPopMatrix();
+
     double wallDis = 10.92;
 
-    
     double FloorSize = 47*2;
     double FloorChexSize = 25*2;
     if(cubeDispenser.GetPlacedCubes().size()>0){
