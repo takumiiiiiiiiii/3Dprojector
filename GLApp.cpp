@@ -11,6 +11,9 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_glut.h"
+#include "imgui/backends/imgui_impl_opengl2.h"
 
 
 //初期設定関数
@@ -19,7 +22,7 @@ namespace {
         float x = 0.0f;
         float y = 0.0f;
         float z = 0.0f;
-        bool valid = false;   // まだ一度もデータを受信していない場合は false
+        bool valid = true;   // まだ一度もデータを受信していない場合は false
     };
 
     // ------------------------------------------------------------------
@@ -240,9 +243,14 @@ void initGL()
     //ウィンドウ生成
     
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
-glutInitWindowSize(1920,1080);
-int windowId = glutCreateWindow("CG Final");
+    glutInitWindowSize(1920,1080);
+    int windowId = glutCreateWindow("CG Final");
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
 
+    ImGui_ImplGLUT_Init();
+    ImGui_ImplOpenGL2_Init();
 // フルスクリーン
 
     std::cout << "windowId: " << windowId << std::endl;
@@ -731,6 +739,8 @@ void DrawWarpedTextures()
 
 
     double widthfix = 0.2f;//台形補正
+    double TopXLfix = -0.8f;//右上の台形補正
+    double TopXRfix = -0.2f;//右下の台形補正
     double Xfix = -0.1f;
     double Lfix = testD;
 
@@ -739,7 +749,7 @@ void DrawWarpedTextures()
     glBegin(GL_QUADS);
 
     glTexCoord2f(0,0);
-    glVertex2f(-1.0f,-1.0f);
+    glVertex2f(-1.0f,-1.0f+widthfix+Xfix+TopXRfix);
 
     glTexCoord2f(1,0);
     glVertex2f(0.0,-1.0f+widthfix+Xfix);
@@ -747,7 +757,7 @@ void DrawWarpedTextures()
     glTexCoord2f(1,1);
     glVertex2f(0.0,1.0f-widthfix+Xfix+Lfix);
     glTexCoord2f(0,1);
-    glVertex2f(-1.0f,1.0f);
+    glVertex2f(-1.0f,1.0f-widthfix+Xfix+Lfix+TopXLfix);
 
     glEnd();
 
@@ -756,7 +766,7 @@ void DrawWarpedTextures()
     glBegin(GL_QUADS);
 
     glTexCoord2f(0,0);
-    glVertex2f(0.0f,-1.0f);
+    glVertex2f(0.0f,-1.0f+widthfix+Xfix+TopXRfix);
 
     glTexCoord2f(1,0);
   
@@ -765,7 +775,7 @@ void DrawWarpedTextures()
     glTexCoord2f(1,1);
     glVertex2f(1.0f,1.0f-widthfix+Xfix+Lfix);
     glTexCoord2f(0,1);
-    glVertex2f(0.0f,1.0f);
+    glVertex2f(0.0f,1.0f-widthfix+Xfix+Lfix+TopXLfix);
 
     glEnd();
 

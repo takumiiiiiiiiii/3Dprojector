@@ -1,3 +1,4 @@
+//色、形、背景の明るさ、
 #include "Globals.h"
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
@@ -18,6 +19,7 @@ double cameraDis = 110.0f; // 原点とカメラの間の距離
 double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
 
 // 視点（目）
+
 Vec_3D pe = {0.0, 89, 30};
 //視点極座標
 double eDist, eDegX, eDegY;
