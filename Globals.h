@@ -30,8 +30,21 @@ extern Vec_3D pb;  // 右下
 extern Vec_3D pc;  // 左上
 extern double cameraDis; // 目とカメラの間の距離
 extern double cameraHeight; // 目とカメラの間の距離 
+//台形補正
+extern double widthfix;//台形補正
+extern double TopXLfix;//右上の台形補正
+extern double TopXRfix;//右下の台形補正
+extern double Xfix;
+
+//ウィンドウクリア色
+extern Vec_3D windowClearColor;
 // 視点（目）
 extern Vec_3D pe;
+//メイン表示オブジェクト
+extern Vec_3D mainOjbectPos;  // 左上
+extern Vec_3D mainOjbectSize;
+//メイン表示オブジェクトの形
+extern int mainObjectType;
 //カメラの位置と向き
 extern double eDist;
 extern double eDegX;

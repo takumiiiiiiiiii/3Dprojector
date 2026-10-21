@@ -127,6 +127,8 @@ namespace {
 
     std::thread        g_tcpThread;
     std::atomic<bool>  g_tcpThreadRunning{false};
+    int g_renderWindowId = 0;
+    int g_imguiWindowId = 0;
  
     // このフレームで実際に使う目位置（display() の先頭で1回だけ確定させる）
     float g_eyeXL = 0.0f;
@@ -244,7 +246,7 @@ void initGL()
     
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);  //ディスプレイ表示モード指定
     glutInitWindowSize(1920,1080);
-    int windowId = glutCreateWindow("CG Final");
+    g_renderWindowId = glutCreateWindow("CG Final");
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -253,7 +255,7 @@ void initGL()
     ImGui_ImplOpenGL2_Init();
 // フルスクリーン
 
-    std::cout << "windowId: " << windowId << std::endl;
+    std::cout << "windowId: " << g_renderWindowId << std::endl;
   
     const GLubyte* version = glGetString(GL_VERSION);
 
@@ -403,6 +405,12 @@ void initGL()
     lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
     lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
 
+    glutInitWindowSize(500, 400);
+    glutInitWindowPosition(100, 100);
+    g_imguiWindowId = glutCreateWindow("ImGui Controls");
+    glutDisplayFunc(showImgui);
+    ImGui_ImplGLUT_InstallFuncs();
+    glutSetWindow(g_renderWindowId);
 }
 
 //ディスプレイコールバック関数
@@ -429,10 +437,11 @@ void display()
     if(!NormalView){
       DrawWarpedTextures();
     }
-
     glutSwapBuffers();
 }
 void initView(bool isLeftEye) {
+    //ウィンドウクリア色の設定
+    glClearColor(windowClearColor.x,windowClearColor.y,windowClearColor.z, 1.0);
     // 【変更なし】ここでTCP受信は行わない。display()先頭で確定させた
     // g_eyeX/Y/Z をそのまま使うだけ（左目・右目で同じ値になる）。
     float eyeX ;
@@ -650,7 +659,7 @@ void dispobj(){
         glTranslated(0,floorY,-LookZ);
         glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
         glScaled(10,10,10);
-        setColor(0.0, 1.0, 1.0, 1.0);
+        setColor(0.0, 0.0, 0.0, 1.0);
         draw_floor(100,100,0,0,0);
     glPopMatrix();
     //影を描画(床の上に潰したオブジェクトを暗い色で)
@@ -666,7 +675,7 @@ void dispobj(){
 
         glPushMatrix();
             glMultMatrixf((GLfloat*)shadowMat);
-            glTranslated(boxPos.x,boxPos.y,boxPos.z);
+            glTranslated(mainOjbectPos.x,mainOjbectPos.y,mainOjbectPos.z);
             glutSolidCube(10);
         glPopMatrix();
 
@@ -676,9 +685,9 @@ void dispobj(){
     glPopAttrib();
     //目標物体
     glPushMatrix();
-        glTranslated(boxPos.x,boxPos.y,boxPos.z);
+        glTranslated(mainOjbectPos.x,mainOjbectPos.y,mainOjbectPos.z);
         glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-        glScaled(10,10,10);
+        glScaled(mainOjbectSize.x,mainOjbectSize.y,mainOjbectSize.z);
         setColor(0.0, 1.0, 0.0, 1.0);
         glutSolidCube(1);
     glPopMatrix();
@@ -703,6 +712,8 @@ void dispobj(){
         glTranslated(pointingCell.gx*GRID_SIZE,pointingCell.gy*GRID_SIZE+GRID_SIZE/2,pointingCell.gz*GRID_SIZE);
         glScaled(1.0,1.0,1.0);
     glPopMatrix();
+
+
 }
 
 void DrawWarpedTextures()
@@ -738,10 +749,10 @@ void DrawWarpedTextures()
     glEnable(GL_TEXTURE_2D);
 
 
-    double widthfix = 0.2f;//台形補正
-    double TopXLfix = -0.8f;//右上の台形補正
-    double TopXRfix = -0.2f;//右下の台形補正
-    double Xfix = -0.1f;
+    // double widthfix = 0.2f;//台形補正
+    // double TopXLfix = -0.8f;//右上の台形補正
+    // double TopXRfix = -0.2f;//右下の台形補正
+    // double Xfix = -0.1f;
     double Lfix = testD;
 
     glBindTexture(GL_TEXTURE_2D, leftTex);
@@ -788,6 +799,7 @@ void DrawWarpedTextures()
 //リサイズコールバック関数
 void reshape(int w, int h)
 {
+    if (w <= 0 || h <= 0) return;
      glViewport(0, 0, w, h);
 
     // 左テクスチャ
@@ -826,7 +838,17 @@ void reshape(int w, int h)
 //タイマーコールバック関数
 void timer(int value)
 {
-    glutPostRedisplay();  //ディスプレイイベント強制発生
+    if (g_renderWindowId != 0) {
+        glutSetWindow(g_renderWindowId);
+        glutPostRedisplay();
+    }
+    if (g_imguiWindowId != 0) {
+        glutSetWindow(g_imguiWindowId);
+        glutPostRedisplay();
+    }
+    if (g_renderWindowId != 0) {
+        glutSetWindow(g_renderWindowId);
+    }
     glutTimerFunc(1000/f, timer, 0);  //タイマー再設定
 }
 
@@ -881,9 +903,8 @@ void mouse(int button, int state, int x, int y)
     // //大きさ
     if (mButton==GLUT_LEFT_BUTTON && mState==GLUT_DOWN) { //マウスボタンを押したとき
         pointingCell.color = cubeDispenser.GetCurrCubeColor();
-        cubeDispenser.AddCube(pointingCell);
+        // cubeDispenser.AddCube(pointingCell);
 	}
-    
 }
 
 //マウスドラッグコールバック関数
@@ -925,6 +946,7 @@ void motion(int x, int y)
     }
     //マウス座標をグローバル変数に保存
     mX = x; mY = y;
+// 既存のキューブ配置処理
 }
 
 void mouseWheel(int wheel,int direction,int x,int y){
@@ -1026,4 +1048,56 @@ void setrundum(int i,int j){
     for (int i = 0; i < OSTS; i++) {
         ost_degs[i]= rand() % 360;
     }
+}
+
+void showImgui(){
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplGLUT_NewFrame();
+    ImGui_ImplOpenGL2_NewFrame();
+    ImGui::NewFrame();
+    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    //
+    ImGui::Begin("ObjectSetting");
+    ImGui::Text("Object");
+    ImGui::InputDouble("X", &mainOjbectPos.x, 1.0, 10.0, "%.2f");
+    ImGui::InputDouble("Y", &mainOjbectPos.y, 1.0, 10.0, "%.2f");
+    ImGui::InputDouble("Z", &mainOjbectPos.z, 1.0, 10.0, "%.2f");
+    ImGui::Checkbox("isNormalView", &NormalView);
+    float offset = static_cast<float>(eyeOffset);
+    if (ImGui::SliderFloat("EyeOffset", &offset, 0.0f, 1.0f)) {
+        eyeOffset = offset;
+    }
+    ImGui::End();
+    //
+    ImGui::Begin("SceneSetting");
+    ImGui::Text("windowClearColor");
+    ImGui::InputDouble("R", &windowClearColor.x, 1.0, 10.0, "%.2f");
+    ImGui::InputDouble("G", &windowClearColor.y, 1.0, 10.0, "%.2f");
+    ImGui::InputDouble("B", &windowClearColor.z, 1.0, 10.0, "%.2f");
+
+    ImGui::End();
+        ImGui::Begin("FixDrawDistance");
+    ImGui::Text("windowClearColor");
+    float widthfixOffset = static_cast<float>(widthfix);
+    if(ImGui::SliderFloat("EyeOffset", &widthfixOffset, 0.0f, 1.0f)) {
+        widthfix = widthfixOffset;
+    }
+    float TopXLfixOffset = static_cast<float>(TopXLfix);
+    if(ImGui::SliderFloat("TopXLfix", &TopXLfixOffset, -1.0f, 1.0f)) {
+        TopXLfix = TopXLfixOffset;
+    }
+    float topXRfixOffset = static_cast<float>(TopXRfix);
+    if(ImGui::SliderFloat("TopXRfix", &topXRfixOffset, -1.0f, 1.0f)) {
+        TopXRfix = topXRfixOffset;
+    }
+    // double widthfix = 0.2f;//台形補正
+    // double TopXLfix = -0.8f;//右上の台形補正
+    // double TopXRfix = -0.2f;//右下の台形補正
+    // double Xfix = -0.1f;
+    
+    ImGui::End();
+
+    ImGui::Render();
+    ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+    glutSwapBuffers();
 }

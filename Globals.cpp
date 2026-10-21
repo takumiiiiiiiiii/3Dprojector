@@ -18,6 +18,16 @@ Vec_3D pc = {-23.0f/2.0f,41.0f, -41.0f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
 double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
 
+//台形補正
+double widthfix = 0.2f;//台形補正
+double TopXLfix = -0.8f;//右上の台形補正
+double TopXRfix = -0.2f;//右下の台形補正
+double Xfix = -0.1f;
+
+
+//ウィンドウクリア色
+Vec_3D windowClearColor = {1.0,1.0,1.0};
+
 // 視点（目）
 
 Vec_3D pe = {0.0, 89, 30};
@@ -31,6 +41,12 @@ double cameraToTargetDegX = 0;
 double cameraToTargetDegY = 0;
 double cameraLength = 10000;
 double lookX=cameraLength, lookY=0, lookZ=0;
+
+//メイン表示オブジェクトの座標
+Vec_3D mainOjbectSize = {10,10,10};
+Vec_3D mainOjbectPos =  {0,mainOjbectSize.y,-22};  // 左上
+//メイン表示オブジェクトの系上
+int mainObjectType = 0;
 //カメラをズームするかそれとも並行移動するかのフラグ
 bool isZooming = false;
 Vec_3D e; // 視点の位置
