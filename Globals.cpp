@@ -20,9 +20,11 @@ double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
 
 //台形補正
 double widthfix = 0.2f;//台形補正
-double TopXLfix = -0.8f;//右上の台形補正
-double TopXRfix = -0.2f;//右下の台形補正
-double Xfix = -0.1f;
+double topwidthfix = 0.0f;
+double topposfix = 0.0f;
+double TopXLfix = -0.0f;//右上の台形補正
+double TopXRfix = -0.0f;//右下の台形補正
+
 
 
 //ウィンドウクリア色
@@ -44,7 +46,7 @@ double lookX=cameraLength, lookY=0, lookZ=0;
 
 //メイン表示オブジェクトの座標
 Vec_3D mainOjbectSize = {10,10,10};
-Vec_3D mainOjbectPos =  {0,mainOjbectSize.y,-22};  // 左上
+Vec_3D mainOjbectPos =  {0,mainOjbectSize.y/2.0f,-22};  // 左上
 //メイン表示オブジェクトの系上
 int mainObjectType = 0;
 //カメラをズームするかそれとも並行移動するかのフラグ

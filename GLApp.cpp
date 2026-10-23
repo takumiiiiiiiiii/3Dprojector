@@ -405,7 +405,7 @@ void initGL()
     lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
     lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
 
-    glutInitWindowSize(500, 400);
+    glutInitWindowSize(700, 400);
     glutInitWindowPosition(100, 100);
     g_imguiWindowId = glutCreateWindow("ImGui Controls");
     glutDisplayFunc(showImgui);
@@ -689,7 +689,12 @@ void dispobj(){
         glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
         glScaled(mainOjbectSize.x,mainOjbectSize.y,mainOjbectSize.z);
         setColor(0.0, 1.0, 0.0, 1.0);
-        glutSolidCube(1);
+        if(mainObjectType==0){
+            glutSolidCube(1);
+        }
+        if(mainObjectType==1){
+            glMySolidCircle(0.0,0.0,0.0,0.5,100);
+        }
     glPopMatrix();
 
     double wallDis = 10.92;
@@ -754,44 +759,37 @@ void DrawWarpedTextures()
     // double TopXRfix = -0.2f;//右下の台形補正
     // double Xfix = -0.1f;
     double Lfix = testD;
+    const auto drawEye = [](GLuint texture, float xOffset, double upperRightOffset)
+    {
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glBegin(GL_QUADS);
+        //左下
+        glTexCoord2f(0,0);
+        glVertex2f(xOffset,-1.0f+widthfix+TopXRfix+topwidthfix+topposfix);
+        //右下
+        glTexCoord2f(1,0);
+        glVertex2f(xOffset+1.0f,-1.0f+widthfix);
+        //右上
+        glTexCoord2f(1,1);
+        glVertex2f(xOffset+1.0f,1.0f-widthfix+upperRightOffset);
+        //左上
+        glTexCoord2f(0,1);
+        glVertex2f(xOffset,1.0f-widthfix+TopXLfix-topwidthfix+topposfix);
+        // glTexCoord2f(0, 0);
+        // glVertex2f(xOffset,     -1.0f + widthfix);             // 左下
+        // glTexCoord2f(1, 0);
+        // glVertex2f(xOffset+1.0f, -1.0f + widthfix);             // 右下
+        // glTexCoord2f(1, 1);
+        // glVertex2f(xOffset+1.0f,  1.0f - widthfix + TopXRfix);  // 右上
+        // glTexCoord2f(0, 1);
+        // glVertex2f(xOffset,      1.0f - widthfix + TopXLfix);   // 左上
+        glEnd();
+    };
 
-    glBindTexture(GL_TEXTURE_2D, leftTex);
-//左眼用の描画
-    glBegin(GL_QUADS);
-
-    glTexCoord2f(0,0);
-    glVertex2f(-1.0f,-1.0f+widthfix+Xfix+TopXRfix);
-
-    glTexCoord2f(1,0);
-    glVertex2f(0.0,-1.0f+widthfix+Xfix);
-
-    glTexCoord2f(1,1);
-    glVertex2f(0.0,1.0f-widthfix+Xfix+Lfix);
-    glTexCoord2f(0,1);
-    glVertex2f(-1.0f,1.0f-widthfix+Xfix+Lfix+TopXLfix);
-
-    glEnd();
-
-    glBindTexture(GL_TEXTURE_2D, rightTex);
-//右目用の描画
-    glBegin(GL_QUADS);
-
-    glTexCoord2f(0,0);
-    glVertex2f(0.0f,-1.0f+widthfix+Xfix+TopXRfix);
-
-    glTexCoord2f(1,0);
-  
-    glVertex2f(1.0f,-1.0f+widthfix+Xfix);
-
-    glTexCoord2f(1,1);
-    glVertex2f(1.0f,1.0f-widthfix+Xfix+Lfix);
-    glTexCoord2f(0,1);
-    glVertex2f(0.0f,1.0f-widthfix+Xfix+Lfix+TopXLfix);
-
-    glEnd();
+    drawEye(leftTex, -1.0f, 0.0);
+    drawEye(rightTex, 0.0f, 0.0);
 
     glDisable(GL_TEXTURE_2D);
-
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
 }
@@ -1051,6 +1049,20 @@ void setrundum(int i,int j){
 }
 
 void showImgui(){
+    auto SliderDouble = [](const char* label, double& value,
+                       float minValue, float maxValue) -> bool
+    {
+        float temp = static_cast<float>(value);
+
+        if (ImGui::SliderFloat(label, &temp, minValue, maxValue))
+        {
+            value = static_cast<double>(temp);
+            return true;
+        }
+
+        return false;
+    };
+
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplGLUT_NewFrame();
     ImGui_ImplOpenGL2_NewFrame();
@@ -1059,16 +1071,15 @@ void showImgui(){
     //
     ImGui::Begin("ObjectSetting");
     ImGui::Text("Object");
-    ImGui::InputDouble("X", &mainOjbectPos.x, 1.0, 10.0, "%.2f");
-    ImGui::InputDouble("Y", &mainOjbectPos.y, 1.0, 10.0, "%.2f");
-    ImGui::InputDouble("Z", &mainOjbectPos.z, 1.0, 10.0, "%.2f");
+    float mainObjMove = 20.0f;
+    SliderDouble("X", mainOjbectPos.x, -mainObjMove, mainObjMove);
+    SliderDouble("Y", mainOjbectPos.y, -mainObjMove, mainObjMove);
+    SliderDouble("Z", mainOjbectPos.z, -mainObjMove, mainObjMove);
+    ImGui::InputInt("ObjtctType",&mainObjectType,1.0,3.0);
     ImGui::Checkbox("isNormalView", &NormalView);
-    float offset = static_cast<float>(eyeOffset);
-    if (ImGui::SliderFloat("EyeOffset", &offset, 0.0f, 1.0f)) {
-        eyeOffset = offset;
-    }
+    SliderDouble("EyeOffset",eyeOffset, 0.0f,1.0f);
     ImGui::End();
-    //
+    //背景
     ImGui::Begin("SceneSetting");
     ImGui::Text("windowClearColor");
     ImGui::InputDouble("R", &windowClearColor.x, 1.0, 10.0, "%.2f");
@@ -1076,20 +1087,30 @@ void showImgui(){
     ImGui::InputDouble("B", &windowClearColor.z, 1.0, 10.0, "%.2f");
 
     ImGui::End();
-        ImGui::Begin("FixDrawDistance");
+    //現実世界の情報
+    ImGui::Begin("RealWorldSetting");
+    ImGui::Text("Monitor corners (world coordinates)");
+    ImGui::InputDouble("pa X", &pa.x);
+    ImGui::InputDouble("pa Y", &pa.y);
+    ImGui::InputDouble("pa Z", &pa.z);
+    ImGui::InputDouble("pb X", &pb.x);
+    ImGui::InputDouble("pb Y", &pb.y);
+    ImGui::InputDouble("pb Z", &pb.z);
+    ImGui::InputDouble("pc X", &pc.x);
+    ImGui::InputDouble("pc Y", &pc.y);
+    ImGui::InputDouble("pc Z", &pc.z);
+    ImGui::InputDouble("Camera distance", &cameraDis);
+    ImGui::InputDouble("Camera height", &cameraHeight);
+    ImGui::End();
+    //台形補正
+    ImGui::Begin("FixDrawDistance");
     ImGui::Text("windowClearColor");
-    float widthfixOffset = static_cast<float>(widthfix);
-    if(ImGui::SliderFloat("EyeOffset", &widthfixOffset, 0.0f, 1.0f)) {
-        widthfix = widthfixOffset;
-    }
-    float TopXLfixOffset = static_cast<float>(TopXLfix);
-    if(ImGui::SliderFloat("TopXLfix", &TopXLfixOffset, -1.0f, 1.0f)) {
-        TopXLfix = TopXLfixOffset;
-    }
-    float topXRfixOffset = static_cast<float>(TopXRfix);
-    if(ImGui::SliderFloat("TopXRfix", &topXRfixOffset, -1.0f, 1.0f)) {
-        TopXRfix = topXRfixOffset;
-    }
+    SliderDouble("Widthfix",widthfix, -2.0f, 2.0f);
+    SliderDouble("opwidthfix",topwidthfix, -2.0f,2.0f);
+    SliderDouble("TopPosFix", topposfix, -2.0f, 2.0f);
+    SliderDouble("TopXLFix",TopXLfix, -2.0f,2.0f);
+    SliderDouble("TopXRfix", TopXRfix, -2.0f, 2.0f);
+
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
     // double TopXRfix = -0.2f;//右下の台形補正

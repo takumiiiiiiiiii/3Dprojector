@@ -32,6 +32,8 @@ extern double cameraDis; // 目とカメラの間の距離
 extern double cameraHeight; // 目とカメラの間の距離 
 //台形補正
 extern double widthfix;//台形補正
+extern double topwidthfix;//上部幅
+extern double topposfix;//上部位置
 extern double TopXLfix;//右上の台形補正
 extern double TopXRfix;//右下の台形補正
 extern double Xfix;
