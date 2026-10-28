@@ -13,6 +13,7 @@ void initGL();
 void display();
 void initView(bool isLeftEye);
 void dispobj();
+void showImgui();
 void reshape(int w, int h);
 void timer(int value);
 void mouseMove(int x, int y);
