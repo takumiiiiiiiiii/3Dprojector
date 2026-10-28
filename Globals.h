@@ -36,6 +36,7 @@ extern double topwidthfix;//上部幅
 extern double topposfix;//上部位置
 extern double TopXLfix;//右上の台形補正
 extern double TopXRfix;//右下の台形補正
+extern double TopYfix;//右上の台形補正
 extern double Xfix;
 
 //ウィンドウクリア色

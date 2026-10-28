@@ -22,8 +22,10 @@ double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
 double widthfix = 0.2f;//台形補正
 double topwidthfix = 0.0f;
 double topposfix = 0.0f;
-double TopXLfix = -0.0f;//右上の台形補正
-double TopXRfix = -0.0f;//右下の台形補正
+double TopXLfix = -0.769f;//右上の台形補正
+double TopXRfix = -0.128f;//右下の台形補正
+double TopYfix = -0.359f;//右上の台形補正
+
 
 
 

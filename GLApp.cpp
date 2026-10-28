@@ -757,34 +757,101 @@ void DrawWarpedTextures()
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
     // double TopXRfix = -0.2f;//右下の台形補正
-    // double Xfix = -0.1f;
-    double Lfix = testD;
-    const auto drawEye = [](GLuint texture, float xOffset, double upperRightOffset)
+        // double Xfix = -0.1f;
+    // 四角形内の座標を表す
+    struct WarpPoint
     {
+        double x;
+        double y;
+    };
+
+    // 4つの頂点から、四角形内の座標を計算する
+    auto BilinearPoint = [](
+        double u, double v,
+        const WarpPoint& bl,
+        const WarpPoint& br,
+        const WarpPoint& tr,
+        const WarpPoint& tl) -> WarpPoint
+    {
+        double wBL = (1.0 - u) * (1.0 - v);
+        double wBR = u * (1.0 - v);
+        double wTR = u * v;
+        double wTL = (1.0 - u) * v;
+
+        return {
+            wBL * bl.x + wBR * br.x
+                + wTR * tr.x + wTL * tl.x,
+
+            wBL * bl.y + wBR * br.y
+                + wTR * tr.y + wTL * tl.y
+        };
+    };
+
+    const auto drawEye = [&](GLuint texture,float xOffset,double upperRightOffset)
+    {
+        // 現在の4頂点をそのまま使用する
+        const WarpPoint bl = {
+            xOffset+TopYfix,
+            -1.0 + widthfix + TopXRfix
+        };
+
+        const WarpPoint br = {
+            xOffset + 1.0,
+            -1.0 + widthfix
+        };
+
+        const WarpPoint tr = {
+            xOffset + 1.0,
+            1.0 - widthfix + upperRightOffset
+        };
+
+        const WarpPoint tl = {
+            xOffset+TopYfix,
+            1.0 - widthfix + TopXLfix
+        };
+
         glBindTexture(GL_TEXTURE_2D, texture);
+
+        // 分割数。大きいほど滑らかになる
+        const int divisions = 40;
+
         glBegin(GL_QUADS);
-        //左下
-        glTexCoord2f(0,0);
-        glVertex2f(xOffset,-1.0f+widthfix+TopXRfix+topwidthfix+topposfix);
-        //右下
-        glTexCoord2f(1,0);
-        glVertex2f(xOffset+1.0f,-1.0f+widthfix);
-        //右上
-        glTexCoord2f(1,1);
-        glVertex2f(xOffset+1.0f,1.0f-widthfix+upperRightOffset);
-        //左上
-        glTexCoord2f(0,1);
-        glVertex2f(xOffset,1.0f-widthfix+TopXLfix-topwidthfix+topposfix);
-        // glTexCoord2f(0, 0);
-        // glVertex2f(xOffset,     -1.0f + widthfix);             // 左下
-        // glTexCoord2f(1, 0);
-        // glVertex2f(xOffset+1.0f, -1.0f + widthfix);             // 右下
-        // glTexCoord2f(1, 1);
-        // glVertex2f(xOffset+1.0f,  1.0f - widthfix + TopXRfix);  // 右上
-        // glTexCoord2f(0, 1);
-        // glVertex2f(xOffset,      1.0f - widthfix + TopXLfix);   // 左上
+
+        for (int j = 0; j < divisions; ++j)
+        {
+            double v0 = static_cast<double>(j) / divisions;
+            double v1 = static_cast<double>(j + 1) / divisions;
+
+            for (int i = 0; i < divisions; ++i)
+            {
+                double u0 = static_cast<double>(i) / divisions;
+                double u1 = static_cast<double>(i + 1) / divisions;
+
+                // 左下
+                WarpPoint p = BilinearPoint(u0, v0, bl, br, tr, tl);
+                glTexCoord2d(u0, v0);
+                glVertex2d(p.x, p.y);
+
+                // 右下
+                p = BilinearPoint(u1, v0, bl, br, tr, tl);
+                glTexCoord2d(u1, v0);
+                glVertex2d(p.x, p.y);
+
+                // 右上
+                p = BilinearPoint(u1, v1, bl, br, tr, tl);
+                glTexCoord2d(u1, v1);
+                glVertex2d(p.x, p.y);
+
+                // 左上
+                p = BilinearPoint(u0, v1, bl, br, tr, tl);
+                glTexCoord2d(u0, v1);
+                glVertex2d(p.x, p.y);
+            }
+        }
+
         glEnd();
     };
+    
 
     drawEye(leftTex, -1.0f, 0.0);
     drawEye(rightTex, 0.0f, 0.0);
@@ -1110,6 +1177,7 @@ void showImgui(){
     SliderDouble("TopPosFix", topposfix, -2.0f, 2.0f);
     SliderDouble("TopXLFix",TopXLfix, -2.0f,2.0f);
     SliderDouble("TopXRfix", TopXRfix, -2.0f, 2.0f);
+    SliderDouble("TopYfix",TopYfix,-2.0f,2.0f);   
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
