@@ -7,6 +7,8 @@ bool useTcp = false;
 float manualCenterX = 0.0f;
 float manualCenterY = 0.0f;
 float manualEyeDistance = 600.0f;
+//格子テクスチャ
+GLuint latticeTexture;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;

@@ -329,28 +329,72 @@ void initGL()
         }
     }
 
-    cv::Mat textureImage;
-    textureImage = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
+    // initGL() 内。OpenGLコンテキスト作成後に実行
+    // latticeTexture; = cv::imread("Texture/Kousi.jpg", cv::IMREAD_COLOR);
+    // if (image.empty()) {
+    //     std::cerr << "画像を読み込めませんでした: Texture/Kousi.jpg" << std::endl;
+    // } else {
+    //     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
-    if (textureImage.empty()) {
-        std::cout << "画像を読み込めませんでした: AIT_Zoo.jpg" << std::endl;
+    //     glGenTextures(1, &imageTex);
+    //     glBindTexture(GL_TEXTURE_2D, imageTex);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    //     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    //     glTexImage2D(
+    //         GL_TEXTURE_2D, 0, GL_RGB,
+    //         image.cols, image.rows, 0,
+    //         GL_RGB, GL_UNSIGNED_BYTE, image.data
+    //     );
+    //     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    //     glBindTexture(GL_TEXTURE_2D, 0);
+    // }
+    // initGL() 内。OpenGLコンテキスト作成後に実行
+    cv::Mat image = cv::imread("Texture/Kousi.jpg", cv::IMREAD_COLOR);
+    if (image.empty()) {
+        std::cerr << "画像を読み込めませんでした: Texture/Kousi.jpg" << std::endl;
     } else {
-        cv::cvtColor(textureImage, textureImage, cv::COLOR_BGR2RGB);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+        glGenTextures(1, &latticeTexture);
+        glBindTexture(GL_TEXTURE_2D, latticeTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RGB,
-            textureImage.cols,
-            textureImage.rows,
-            0,
-            GL_RGB,
-            GL_UNSIGNED_BYTE,
-            textureImage.data
+            GL_TEXTURE_2D, 0, GL_RGB,
+            image.cols, image.rows, 0,
+            GL_RGB, GL_UNSIGNED_BYTE, image.data
         );
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
+
+    // latticeTexture = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
+    // if (textureImage.empty()) {
+    //     std::cout << "画像を読み込めませんでした: AIT_Zoo.jpg" << std::endl;
+    // } else {
+    //     cv::cvtColor(textureImage, textureImage, cv::COLOR_BGR2RGB);
+    //     glBindTexture(GL_TEXTURE_2D, 0);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //     glTexImage2D(
+    //         GL_TEXTURE_2D,
+    //         0,
+    //         GL_RGB,
+    //         textureImage.cols,
+    //         textureImage.rows,
+    //         0,
+    //         GL_RGB,
+    //         GL_UNSIGNED_BYTE,
+    //         textureImage.data
+    //     );
+    // }
 
     glGenTextures(1, &leftTex);
     glBindTexture(GL_TEXTURE_2D, leftTex);
@@ -870,8 +914,8 @@ void DrawWarpedTextures()
     };
     
 
-    drawEye(leftTex, -1.0f, 0.0);
-    drawEye(rightTex, 0.0f, 0.0);
+    drawEye(latticeTexture, -1.0f, 0.0);
+    drawEye(latticeTexture, 0.0f, 0.0);
 
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);

@@ -23,6 +23,8 @@ extern bool useTcp;      // true: TCP受信で視点位置を更新, false: TCP�
 extern float manualCenterX; // TCPなし時の代替値
 extern float manualCenterY;
 extern float manualEyeDistance;
+//格子テクスチャ
+extern GLuint latticeTexture;
 //現実の情報
 // モニター四隅
 extern Vec_3D pa;  // 左下
@@ -171,3 +173,4 @@ extern GLuint leftTex ;
 extern GLuint rightTex;
 
 extern bool warpInitialized;
+
