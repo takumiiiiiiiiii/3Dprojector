@@ -398,9 +398,9 @@ void initGL()
     eyeFilterR.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
 
     //カメラ座標設定
-    camX = pe.x;
-    camY = pe.y/2;
-    camZ = pe.z;
+    camX = playerEye.x;
+    camY = playerEye.y/2;
+    camZ = playerEye.z;
     cameraToTargetDegY = -90;
     lookX = cameraLength * cos(cameraToTargetDegY * M_PI / 180.0);
     lookZ = cameraLength * sin(cameraToTargetDegY * M_PI / 180.0);
@@ -467,15 +467,15 @@ void initView(bool isLeftEye) {
     int viewH = static_cast<int>(winH * rDisp);
     double aspect = static_cast<double>(viewW) / static_cast<double>(viewH);
     if(useTcp){
-    pe.x = -eyeX;
-    pe.y = eyeY;
-    pe.z = eyeZ;
+    playerEye.x = -eyeX;
+    playerEye.y = eyeY;
+    playerEye.z = eyeZ;
     }
 
     if(isLeftEye){
-        std::cout << "Left Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+        std::cout << "Left Eye Position: (" << playerEye.x << ", " << playerEye.y << ", " << playerEye.z << ")" << std::endl;
     }else{
-        std::cout << "Right Eye Position: (" << pe.x << ", " << pe.y << ", " << pe.z << ")" << std::endl;
+        std::cout << "Right Eye Position: (" << playerEye.x << ", " << playerEye.y << ", " << playerEye.z << ")" << std::endl;
     }
     // 視点極座標から直交座標へ変換
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
@@ -530,7 +530,7 @@ void initView(bool isLeftEye) {
     Vec_3D vr = vectorNormalize(diffVec(pb, pa));
     // モニターの上方向ベクトルを計算
     Vec_3D vu = vectorNormalize(diffVec(pc, pa));
-    // モニターの法線ベクトルを計算
+    // モニターの法線ベクトルを計算fafa
     Vec_3D vn = vectorNormalize(crossProduct(vr, vu));
 
     //スクリーン中心
@@ -542,9 +542,9 @@ void initView(bool isLeftEye) {
     center.y = (pa.y + pb.y + pc.y + pd.y) * 0.25f;
     center.z = (pa.z + pb.z + pc.z + pd.z) * 0.25f;
     // スクリーンの左下、右下、左上の座標を定義
-    Vec_3D va = diffVec(pa, pe);//スクリーンの左下から視点へのベクトル
-    Vec_3D vb = diffVec(pb, pe);//スクリーンの右下から視点へのベクトル
-    Vec_3D vc = diffVec(pc, pe);//スクリーンの左上から視点へのベクトル
+    Vec_3D va = diffVec(pa, playerEye);//スクリーンの左下から視点へのベクトル
+    Vec_3D vb = diffVec(pb, playerEye);//スクリーンの右下から視点へのベクトル
+    Vec_3D vc = diffVec(pc, playerEye);//スクリーンの左上から視点へのベクトル
 
     //
     double d = -innerProduct(va, vn);
@@ -578,16 +578,16 @@ void initView(bool isLeftEye) {
     double LookZp = -65.36;
     double angle = 45.0f;
 
-    center = diffVec(pe, vn);
+    center = diffVec(playerEye, vn);
     if (isLeftEye) {
-        Vec_3D eye = pe;
+        Vec_3D eye = playerEye;
         gluLookAt(
             eye.x+eyeOffset/2,eye.y,eye.z,
             center.x+eyeOffset, center.y, center.z,
             1,0,0
         );
     } else {
-        Vec_3D eye = pe;
+        Vec_3D eye = playerEye;
         gluLookAt(
             eye.x-eyeOffset/2,eye.y,eye.z,
             center.x-eyeOffset, center.y, center.z,
@@ -659,7 +659,7 @@ void dispobj(){
         glTranslated(0,floorY,-LookZ);
         glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
         glScaled(10,10,10);
-        setColor(0.0, 0.0, 0.0, 1.0);
+        setColor(floorColor.x, floorColor.y, floorColor.z, 1.0);
         draw_floor(100,100,0,0,0);
     glPopMatrix();
     //影を描画(床の上に潰したオブジェクトを暗い色で)
@@ -693,7 +693,13 @@ void dispobj(){
             glutSolidCube(1);
         }
         if(mainObjectType==1){
-            glMySolidCircle(0.0,0.0,0.0,0.5,100);
+            glutSolidSphere(0.5, 36, 18);  //球
+        }
+        if(mainObjectType==2){
+            glPushMatrix();
+                glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
+                glMyCylinder(0.5,0.5,1,36);
+            glPopMatrix();
         }
     glPopMatrix();
 
@@ -1129,29 +1135,48 @@ void showImgui(){
 
         return false;
     };
+    auto ColorEditVec3 = [](const char* label, Vec_3D& color)
+    {
+        float values[3] = {
+            static_cast<float>(color.x),
+            static_cast<float>(color.y),
+            static_cast<float>(color.z)
+        };
+        if (ImGui::ColorEdit3(label, values))
+        {
+            color.x = values[0];
+            color.y = values[1];
+            color.z = values[2];
+        }
+    };
 
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplGLUT_NewFrame();
     ImGui_ImplOpenGL2_NewFrame();
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-    //
+    //メインオブジェクトのサイズ
     ImGui::Begin("ObjectSetting");
     ImGui::Text("Object");
     float mainObjMove = 20.0f;
-    SliderDouble("X", mainOjbectPos.x, -mainObjMove, mainObjMove);
-    SliderDouble("Y", mainOjbectPos.y, -mainObjMove, mainObjMove);
-    SliderDouble("Z", mainOjbectPos.z, -mainObjMove, mainObjMove);
+    SliderDouble("position X", mainOjbectPos.x, -mainObjMove, mainObjMove);
+    SliderDouble("position Y", mainOjbectPos.y, -20, 80);
+    SliderDouble("position Z", mainOjbectPos.z, -80, 80);
+    float mainObjSize = 20.0f;
+    SliderDouble("sizeX", mainOjbectSize.x, -mainObjMove, mainObjSize);
+    SliderDouble("sizeY", mainOjbectSize.y, -mainObjMove, mainObjSize);
+    SliderDouble("sizeZ", mainOjbectSize.z, -mainObjMove, mainObjSize);
     ImGui::InputInt("ObjtctType",&mainObjectType,1.0,3.0);
     ImGui::Checkbox("isNormalView", &NormalView);
     SliderDouble("EyeOffset",eyeOffset, 0.0f,1.0f);
     ImGui::End();
     //背景
     ImGui::Begin("SceneSetting");
-    ImGui::Text("windowClearColor");
+    ColorEditVec3("Window clear color", windowClearColor);
     ImGui::InputDouble("R", &windowClearColor.x, 1.0, 10.0, "%.2f");
     ImGui::InputDouble("G", &windowClearColor.y, 1.0, 10.0, "%.2f");
     ImGui::InputDouble("B", &windowClearColor.z, 1.0, 10.0, "%.2f");
+    ColorEditVec3("Floor color", floorColor);
 
     ImGui::End();
     //現実世界の情報
@@ -1168,6 +1193,9 @@ void showImgui(){
     ImGui::InputDouble("pc Z", &pc.z);
     ImGui::InputDouble("Camera distance", &cameraDis);
     ImGui::InputDouble("Camera height", &cameraHeight);
+    SliderDouble("PlayerEye.X",playerEye.x, -0.0f,100.0f);
+    SliderDouble("PlayerEye.Y",playerEye.y, -0.0f,100.0f);
+    SliderDouble("PlayerEye.Z",playerEye.z, -0.0f,100.0f);
     ImGui::End();
     //台形補正
     ImGui::Begin("FixDrawDistance");

@@ -30,6 +30,7 @@ extern Vec_3D pb;  // 右下
 extern Vec_3D pc;  // 左上
 extern double cameraDis; // 目とカメラの間の距離
 extern double cameraHeight; // 目とカメラの間の距離 
+extern Vec_3D playerEye;// 視点（目）
 //台形補正
 extern double widthfix;//台形補正
 extern double topwidthfix;//上部幅
@@ -41,8 +42,8 @@ extern double Xfix;
 
 //ウィンドウクリア色
 extern Vec_3D windowClearColor;
-// 視点（目）
-extern Vec_3D pe;
+extern Vec_3D floorColor;
+
 //メイン表示オブジェクト
 extern Vec_3D mainOjbectPos;  // 左上
 extern Vec_3D mainOjbectSize;

@@ -14,27 +14,28 @@ double fWidth = 5000.0;
 //現実の情報  d
 Vec_3D pa = {-23.0f/2.0f, 0, 0};  // 左下
 Vec_3D pb = {23.0f/2.0f, 0,0};  // 右下
-Vec_3D pc = {-23.0f/2.0f,41.0f, -41.0f};  // 左上
+Vec_3D pc = {-23.0f/2.0f,28.0f, -34.0f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
 double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
-
+Vec_3D playerEye = {0.0, 89, 30};//// 視点（目）
 //台形補正
 double widthfix = 0.2f;//台形補正
 double topwidthfix = 0.0f;
 double topposfix = 0.0f;
 double TopXLfix = -0.769f;//右上の台形補正
 double TopXRfix = -0.128f;//右下の台形補正
-double TopYfix = -0.359f;//右上の台形補正
+double TopYfix = 0.359f;//右上の台形補正
 
 
 
 
 //ウィンドウクリア色
 Vec_3D windowClearColor = {1.0,1.0,1.0};
+Vec_3D floorColor = {0.0,0.0,0.0};
 
-// 視点（目）
 
-Vec_3D pe = {0.0, 89, 30};
+
+
 //視点極座標
 double eDist, eDegX, eDegY;
 double camX=0, camY=0, camZ=0;
