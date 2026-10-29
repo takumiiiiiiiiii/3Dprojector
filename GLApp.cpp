@@ -521,19 +521,18 @@ void initView(bool isLeftEye) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
-    float nearPlane = 90.0f/2.0f;
+    float nearPlane = 90.0f/5.0f;
     float farPlane = 1000.0f;
 
     // 2. ビュー行列 (LookAt) の計算
     // モニターの四隅の座標を定義
-    // モニターの右方向ベクトルを計算
+    // モニターの右方向ベクトル
     Vec_3D vr = vectorNormalize(diffVec(pb, pa));
-    // モニターの上方向ベクトルを計算
+    // モニターの上方向ベクトル
     Vec_3D vu = vectorNormalize(diffVec(pc, pa));
-    // モニターの法線ベクトルを計算fafa
+    // モニターの法線ベクトル
     Vec_3D vn = vectorNormalize(crossProduct(vr, vu));
-
-    //スクリーン中心
+    //スクリーン中心座標
     Vec_3D pd = addVec(pb, diffVec(pc, pa));
 
     Vec_3D center;
@@ -676,7 +675,19 @@ void dispobj(){
         glPushMatrix();
             glMultMatrixf((GLfloat*)shadowMat);
             glTranslated(mainOjbectPos.x,mainOjbectPos.y,mainOjbectPos.z);
-            glutSolidCube(10);
+            glScaled(mainOjbectSize.x,mainOjbectSize.y,mainOjbectSize.z);
+            if(mainObjectType==0){
+                glutSolidCube(1);
+            }
+            if(mainObjectType==1){
+                glutSolidSphere(0.5, 36, 18);  //球
+            }
+            if(mainObjectType==2){
+                glPushMatrix();
+                    glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
+                    glMyCylinder(0.5,0.5,1,36);
+                glPopMatrix();
+            }
         glPopMatrix();
 
         glDepthMask(GL_TRUE);
