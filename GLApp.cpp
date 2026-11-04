@@ -639,6 +639,7 @@ void initView(bool isLeftEye) {
     }
 }
 
+
 void dispobj(){
     //光源配置
     GLfloat lightPos0[] = {30, 200,100, 1.0};  //光源座標(点光源)
@@ -778,8 +779,6 @@ void dispobj(){
         glTranslated(pointingCell.gx*GRID_SIZE,pointingCell.gy*GRID_SIZE+GRID_SIZE/2,pointingCell.gz*GRID_SIZE);
         glScaled(1.0,1.0,1.0);
     glPopMatrix();
-
-
 }
 
 void DrawWarpedTextures()
@@ -848,74 +847,68 @@ void DrawWarpedTextures()
         };
     };
 
-    const auto drawEye = [&](GLuint texture,float xOffset,double upperRightOffset)
+
+    // テクスチャのX座標を補正
+    auto CorrectU = [&](double u) -> double
     {
-        // 現在の4頂点をそのまま使用する
-        const WarpPoint bl = {
-            xOffset+TopYfix,
-            -1.0 + widthfix + TopXRfix
-        };
+        return u + verticalFix * (u * u - u);
+    };
 
-        const WarpPoint br = {
-            xOffset + 1.0,
-            -1.0 + widthfix
+    const auto drawEye = [&](GLuint texture, float xOffset, double upperRightOffset)
+    {
+        // x方向(紙の縦)の拡大率。ImGuiのスライダーで調整(初期値1.0)
+        // 固定したい辺(右端 xOffset+1.0)を基準に縮める
+        auto ScaleX = [&](WarpPoint p) {
+            p.x = (xOffset + 1.0) - ((xOffset + 1.0) - p.x) * vScaleX;
+            return p;
         };
+        WarpPoint bl = ScaleX({ xOffset + TopYfix, -1.0 + widthfix + TopXRfix });
+        WarpPoint br = ScaleX({ xOffset + 1.0,     -1.0 + widthfix });
+        WarpPoint tr = ScaleX({ xOffset + 1.0,      1.0 - widthfix + upperRightOffset });
+        WarpPoint tl = ScaleX({ xOffset + TopYfix,  1.0 - widthfix + TopXLfix });
+        // 画面上の4隅 → テクスチャ座標 のホモグラフィ
+        cv::Point2f src[4] = { {(float)bl.x,(float)bl.y}, {(float)br.x,(float)br.y},
+                            {(float)tr.x,(float)tr.y}, {(float)tl.x,(float)tl.y} };
+        cv::Point2f dst[4] = { {0,0}, {1,0}, {1,1}, {0,1} };
+        cv::Mat H = cv::getPerspectiveTransform(src, dst);   // 3x3, CV_64F
 
-        const WarpPoint tr = {
-            xOffset + 1.0,
-            1.0 - widthfix + upperRightOffset
-        };
-
-        const WarpPoint tl = {
-            xOffset+TopYfix,
-            1.0 - widthfix + TopXLfix
+        // [s t r q]^T = M * [x y z 1]^T となるように列優先で詰める
+        double m[16] = {
+            H.at<double>(0,0), H.at<double>(1,0), 0, H.at<double>(2,0),
+            H.at<double>(0,1), H.at<double>(1,1), 0, H.at<double>(2,1),
+            0,                 0,                 1, 0,
+            H.at<double>(0,2), H.at<double>(1,2), 0, H.at<double>(2,2)
         };
 
         glBindTexture(GL_TEXTURE_2D, texture);
+        glMatrixMode(GL_TEXTURE);
+        glLoadMatrixd(m);
+        glMatrixMode(GL_MODELVIEW);
 
-        // 分割数。大きいほど滑らかになる
-        const int divisions = 40;
-
+        // テクスチャ座標には「頂点位置そのもの」を渡す(変換は行列側で行う)
         glBegin(GL_QUADS);
-
-        for (int j = 0; j < divisions; ++j)
-        {
-            double v0 = static_cast<double>(j) / divisions;
-            double v1 = static_cast<double>(j + 1) / divisions;
-
-            for (int i = 0; i < divisions; ++i)
-            {
-                double u0 = static_cast<double>(i) / divisions;
-                double u1 = static_cast<double>(i + 1) / divisions;
-
-                // 左下
-                WarpPoint p = BilinearPoint(u0, v0, bl, br, tr, tl);
-                glTexCoord2d(u0, v0);
-                glVertex2d(p.x, p.y);
-
-                // 右下
-                p = BilinearPoint(u1, v0, bl, br, tr, tl);
-                glTexCoord2d(u1, v0);
-                glVertex2d(p.x, p.y);
-
-                // 右上
-                p = BilinearPoint(u1, v1, bl, br, tr, tl);
-                glTexCoord2d(u1, v1);
-                glVertex2d(p.x, p.y);
-
-                // 左上
-                p = BilinearPoint(u0, v1, bl, br, tr, tl);
-                glTexCoord2d(u0, v1);
-                glVertex2d(p.x, p.y);
-            }
-        }
-
+            glTexCoord2d(bl.x, bl.y); glVertex2d(bl.x, bl.y);
+            glTexCoord2d(br.x, br.y); glVertex2d(br.x, br.y);
+            glTexCoord2d(tr.x, tr.y); glVertex2d(tr.x, tr.y);
+            glTexCoord2d(tl.x, tl.y); glVertex2d(tl.x, tl.y);
         glEnd();
+
+        // 元に戻す(忘れるとほかのテクスチャ描画が壊れます)
+        glMatrixMode(GL_TEXTURE);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
     };
     
-
-    drawEye(latticeTexture, -1.0f, 0.0);
-    drawEye(latticeTexture, 0.0f, 0.0);
+    if (useLatticeTexture)
+    {
+        drawEye(latticeTexture, -1.0f, 0.0);
+        drawEye(latticeTexture, 0.0f, 0.0);
+    }
+    else
+    {
+        drawEye(leftTex, -1.0f, 0.0);
+        drawEye(rightTex, 0.0f, 0.0);
+    }
 
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
@@ -1008,7 +1001,6 @@ void mouseMove(int x,int y){
         Vec_3D normal;
         Ray ray = screen2ray(x,y);
         if(intersectCubeCell(ray,cube,GRID_SIZE,&t,&hit,&normal)){
-        
             pointingCell = cube;
             pointingCell.gx += static_cast<int>(normal.x);
             pointingCell.gy += static_cast<int>(normal.y);
@@ -1134,7 +1126,6 @@ void keyboard(unsigned char key, int x, int y)
             NormalView = !NormalView;
             break;
         case 'y':
-
             testB += 0.01;
             std::cout << "testB: " << testB << std::endl;
             break;
@@ -1260,7 +1251,11 @@ void showImgui(){
     SliderDouble("TopPosFix", topposfix, -2.0f, 2.0f);
     SliderDouble("TopXLFix",TopXLfix, -2.0f,2.0f);
     SliderDouble("TopXRfix", TopXRfix, -2.0f, 2.0f);
-    SliderDouble("TopYfix",TopYfix,-2.0f,2.0f);   
+    // SliderDouble("TopYfix",TopYfix,-2.0f,2.0f);
+    ImGui::InputDouble("TopYfix", &TopYfix, -2.0, 2.0);
+    SliderDouble("Warp X offset", vScaleX, -2.0f, 2.0f);
+    SliderDouble("verticalFix", verticalFix, -2.0f, 2.0f);
+    ImGui::Checkbox("Use lattice texture", &useLatticeTexture);
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正

@@ -40,6 +40,9 @@ extern double topposfix;//上部位置
 extern double TopXLfix;//右上の台形補正
 extern double TopXRfix;//右下の台形補正
 extern double TopYfix;//右上の台形補正
+extern double vScaleX;//ワープ四隅のX方向オフセット
+extern double verticalFix;//縦方向の補正量
+extern bool useLatticeTexture;
 extern double Xfix;
 
 //ウィンドウクリア色
@@ -173,4 +176,3 @@ extern GLuint leftTex ;
 extern GLuint rightTex;
 
 extern bool warpInitialized;
-

@@ -27,6 +27,9 @@ double topposfix = 0.0f;
 double TopXLfix = -0.769f;//右上の台形補正
 double TopXRfix = -0.128f;//右下の台形補正
 double TopYfix = 0.359f;//右上の台形補正
+double vScaleX = 0.0;
+double verticalFix = 0.2;
+bool useLatticeTexture = true;
 
 
 
