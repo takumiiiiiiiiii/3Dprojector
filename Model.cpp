@@ -1,4 +1,6 @@
 #include "Model.h"
+#include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
@@ -10,6 +12,9 @@
 
 Model::Model(){
     scene = nullptr;
+    hasLocalBounds = false;
+    flipTextureU = false;
+    flipTextureV = false;
 }
 
 Model::~Model()
@@ -59,53 +64,101 @@ bool Model::Load(const std::string& filepath){
     }
 
     // ルートノードから順番にメッシュを取得
-    ProcessNode(scene->mRootNode, scene);
+    aiMatrix4x4 identity;
+    ProcessNode(scene->mRootNode, scene, identity);
     ProcessMaterials(scene);
+
+    hasLocalBounds = !vertices.empty();
+    if (hasLocalBounds)
+    {
+        localBounds.minX = localBounds.maxX = vertices[0].x;
+        localBounds.minY = localBounds.maxY = vertices[0].y;
+        localBounds.minZ = localBounds.maxZ = vertices[0].z;
+        for (size_t i = 1; i < vertices.size(); i++)
+        {
+            const Vertex& vertex = vertices[i];
+            localBounds.minX = std::min(localBounds.minX, vertex.x);
+            localBounds.minY = std::min(localBounds.minY, vertex.y);
+            localBounds.minZ = std::min(localBounds.minZ, vertex.z);
+            localBounds.maxX = std::max(localBounds.maxX, vertex.x);
+            localBounds.maxY = std::max(localBounds.maxY, vertex.y);
+            localBounds.maxZ = std::max(localBounds.maxZ, vertex.z);
+        }
+    }
 
     std::cout << "頂点数: " << vertices.size() << std::endl;
     std::cout << "面数: " << faces.size() << std::endl;
     return true;
 }
 
-void Model::ProcessNode(aiNode* node, const aiScene* scene)
+bool Model::IsLoaded() const
 {
+    return !vertices.empty() && !faces.empty();
+}
+
+bool Model::GetLocalBounds(ModelBounds& bounds) const
+{
+    if (!hasLocalBounds)
+    {
+        return false;
+    }
+
+    bounds = localBounds;
+    return true;
+}
+
+void Model::SetTextureCoordinateFlip(bool flipU, bool flipV)
+{
+    flipTextureU = flipU;
+    flipTextureV = flipV;
+}
+
+void Model::ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform)
+{
+    const aiMatrix4x4 transform = parentTransform * node->mTransformation;
+
     // このノードが持っているメッシュを処理
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         unsigned int meshIndex = node->mMeshes[i];
         aiMesh* mesh = scene->mMeshes[meshIndex];
 
-        ProcessMesh(mesh);
+        ProcessMesh(mesh, transform);
     }
 
     // 子ノードも処理
     for (unsigned int i = 0; i < node->mNumChildren; i++)
     {
-        ProcessNode(node->mChildren[i], scene);
+        ProcessNode(node->mChildren[i], scene, transform);
     }
 }
 
-void Model::ProcessMesh(aiMesh* mesh)
+void Model::ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform)
 {
     // 現在の頂点数を記録しておく
     // 複数メッシュがある場合、インデックスをずらすために使う
     unsigned int baseIndex = static_cast<unsigned int>(vertices.size());
     unsigned int startFace = static_cast<unsigned int>(faces.size());
+    aiMatrix3x3 normalTransform(transform);
+    normalTransform.Inverse().Transpose();
 
     // 頂点を取り出す
     for (unsigned int i = 0; i < mesh->mNumVertices; i++)
     {
         Vertex vertex;
 
-        vertex.x = mesh->mVertices[i].x;
-        vertex.y = mesh->mVertices[i].y;
-        vertex.z = mesh->mVertices[i].z;
+        const aiVector3D position = transform * mesh->mVertices[i];
+        vertex.x = position.x;
+        vertex.y = position.y;
+        vertex.z = position.z;
 
         if (mesh->HasNormals())
         {
-            vertex.nx = mesh->mNormals[i].x;
-            vertex.ny = mesh->mNormals[i].y;
-            vertex.nz = mesh->mNormals[i].z;
+            aiVector3D normal = normalTransform * mesh->mNormals[i];
+            normal.Normalize();
+            vertex.nx = normal.x;
+            vertex.ny = normal.y;
+            vertex.nz = normal.z;
         }
         else
         {
@@ -176,10 +229,15 @@ void Model::ProcessMaterials(const aiScene* scene)
             material.diffuse[3] = diffuse.a;
         }
 
-        if (ai_material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+        aiTextureType textureType = aiTextureType_DIFFUSE;
+        if (ai_material->GetTextureCount(textureType) == 0)
+        {
+            textureType = aiTextureType_BASE_COLOR;
+        }
+        if (ai_material->GetTextureCount(textureType) > 0)
         {
             aiString texturePath;
-            if (AI_SUCCESS == ai_material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath))
+            if (AI_SUCCESS == ai_material->GetTexture(textureType, 0, &texturePath))
             {
                 std::string resolvedPath = ResolveTexturePath(texturePath.C_Str());
                 std::map<std::string, GLuint>::iterator cached = textureCache.find(resolvedPath);
@@ -209,6 +267,10 @@ void Model::ProcessMaterials(const aiScene* scene)
 bool Model::LoadTexture(const std::string& filepath, GLuint& textureId)
 {
     cv::Mat textureImage = cv::imread(filepath, cv::IMREAD_UNCHANGED);
+    if (textureImage.depth() != CV_8U)
+    {
+        textureImage.convertTo(textureImage, CV_8U, 1.0 / 256.0);
+    }
     if (textureImage.empty())
     {
         std::cout << "テクスチャ画像を読み込めませんでした: " << filepath << std::endl;
@@ -236,8 +298,11 @@ bool Model::LoadTexture(const std::string& filepath, GLuint& textureId)
     glBindTexture(GL_TEXTURE_2D, textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLint previousUnpackAlignment;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
@@ -249,6 +314,7 @@ bool Model::LoadTexture(const std::string& filepath, GLuint& textureId)
         GL_UNSIGNED_BYTE,
         textureImage.data
     );
+    glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     std::cout << "テクスチャ読み込み成功: " << filepath << std::endl;
@@ -266,14 +332,18 @@ std::string Model::ResolveTexturePath(const std::string& texturePath) const
         }
     }
 
-    while (!path.empty() && path[0] == '/')
+    const bool isAbsolute = (!path.empty() && path[0] == '/') ||
+        (path.size() >= 2 && path[1] == ':');
+    if (isAbsolute)
     {
-        path.erase(0, 1);
-    }
+        std::ifstream textureFile(path.c_str());
+        if (textureFile.good())
+        {
+            return path;
+        }
 
-    if (path.size() >= 2 && path[1] == ':')
-    {
-        return path;
+        const size_t separator = path.find_last_of('/');
+        path = separator == std::string::npos ? path : path.substr(separator + 1);
     }
 
     return modelDirectory + path;
@@ -286,8 +356,7 @@ void Model::Draw()
         return;
     }
 
-    glEnable(GL_TEXTURE_2D);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT | GL_LIGHTING_BIT);
 
     for (size_t partIndex = 0; partIndex < meshParts.size(); partIndex++)
     {
@@ -300,16 +369,18 @@ void Model::Draw()
 
             if (material.hasTexture)
             {
+                glEnable(GL_TEXTURE_2D);
+                glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
                 glBindTexture(GL_TEXTURE_2D, material.textureId);
             }
             else
             {
-                glBindTexture(GL_TEXTURE_2D, 0);
+                glDisable(GL_TEXTURE_2D);
             }
         }
         else
         {
-            glBindTexture(GL_TEXTURE_2D, 0);
+            glDisable(GL_TEXTURE_2D);
         }
 
         glBegin(GL_TRIANGLES);
@@ -322,15 +393,18 @@ void Model::Draw()
             Vertex v1 = vertices[face.index1];
             Vertex v2 = vertices[face.index2];
 
-            glTexCoord2f(v0.u, v0.v);
+            glTexCoord2f(flipTextureU ? 1.0f - v0.u : v0.u,
+                         flipTextureV ? 1.0f - v0.v : v0.v);
             glNormal3f(v0.nx, v0.ny, v0.nz);
             glVertex3f(v0.x, v0.y, v0.z);
 
-            glTexCoord2f(v1.u, v1.v);
+            glTexCoord2f(flipTextureU ? 1.0f - v1.u : v1.u,
+                         flipTextureV ? 1.0f - v1.v : v1.v);
             glNormal3f(v1.nx, v1.ny, v1.nz);
             glVertex3f(v1.x, v1.y, v1.z);
 
-            glTexCoord2f(v2.u, v2.v);
+            glTexCoord2f(flipTextureU ? 1.0f - v2.u : v2.u,
+                         flipTextureV ? 1.0f - v2.v : v2.v);
             glNormal3f(v2.nx, v2.ny, v2.nz);
             glVertex3f(v2.x, v2.y, v2.z);
         }
@@ -338,6 +412,5 @@ void Model::Draw()
         glEnd();
     }
 
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_TEXTURE_2D);
+    glPopAttrib();
 }

@@ -49,6 +49,16 @@ struct MaterialInfo
     float diffuse[4];
 };
 
+struct ModelBounds
+{
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
+};
+
 class Model
 {
 public:
@@ -59,6 +69,9 @@ public:
     bool Load(const std::string& filepath);
     // モデルを描画する
     void Draw();
+    bool IsLoaded() const;
+    bool GetLocalBounds(ModelBounds& bounds) const;
+    void SetTextureCoordinateFlip(bool flipU, bool flipV);
 
 private:
     // Assimp関連
@@ -72,12 +85,16 @@ private:
     std::vector<MaterialInfo> materials;
     std::map<std::string, GLuint> textureCache;
     std::string modelDirectory;
+    ModelBounds localBounds;
+    bool hasLocalBounds;
+    bool flipTextureU;
+    bool flipTextureV;
 
     // ノードを再帰的に処理する
-    void ProcessNode(aiNode* node, const aiScene* scene);
+    void ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform);
     
     // メッシュを処理する
-    void ProcessMesh(aiMesh* mesh);
+    void ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform);
 
     // マテリアルとテクスチャを処理する
     void ProcessMaterials(const aiScene* scene);

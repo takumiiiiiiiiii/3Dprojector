@@ -4,6 +4,7 @@
 #include "CubeDispenser.h"
 #include "TcpServer.h"
 
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -45,13 +46,16 @@ extern double verticalFix;//縦方向の補正量
 extern bool useLatticeTexture;
 extern double Xfix;
 
+
 //ウィンドウクリア色
 extern Vec_3D windowClearColor;
 extern Vec_3D floorColor;
 
 //メイン表示オブジェクト
+extern Model model;
 extern Vec_3D mainOjbectPos;  // 左上
 extern Vec_3D mainOjbectSize;
+extern Vec_3D mainObjectRotation;
 //メイン表示オブジェクトの形
 extern int mainObjectType;
 //カメラの位置と向き

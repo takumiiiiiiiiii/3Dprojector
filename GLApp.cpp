@@ -253,10 +253,13 @@ void initGL()
 
     ImGui_ImplGLUT_Init();
     ImGui_ImplOpenGL2_Init();
+    //Model
+    //model.Load("/Users/x23029xx/Documents/GitHub/3Dprojector/Model/EyeBall/EyeBall.fbx");
+    // model.Load("/Users/x23029xx/Documents/GitHub/3Dprojector/Model/Dog/Pug Dog Low Poly.fbx");
+    model.Load("/Users/x23029xx/Documents/GitHub/3Dprojector/Model/Tree/tree.fbx");
 // フルスクリーン
-
     std::cout << "windowId: " << g_renderWindowId << std::endl;
-  
+
     const GLubyte* version = glGetString(GL_VERSION);
 
     if (version == nullptr) {
@@ -266,19 +269,8 @@ void initGL()
     }
     g_tcpThreadRunning = true;
     g_tcpThread = std::thread(TcpReceiveLoop);
-//     glutCreateWindow("CG Final");  //ウィンドウ生成
-// std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 
-    // // モデル読み込み
-    // // テクスチャをOpenGLへ登録するため、ウィンドウ生成後に読み込む
-    // if (!model.Load("Jusmin_Lowpoly.obj"))
-    // {
-    //     std::cerr << "モデルの読み込みに失敗しました" << std::endl;
-    //     exit(1);
-    // }
-    //キューブディスペンサーの初期化
-   //glutFullScreen();  // ここでフルスクリーンに切り替え
-
+    
     //コールバック関数指定
     glutDisplayFunc(display);  //ディスプレイコールバック関数（"display"）
     glutReshapeFunc(reshape);  //リサイズコールバック関数（"reshape"）
@@ -308,14 +300,6 @@ void initGL()
     amb[0] = 0.2; amb[1] = 0.2; amb[2] = 0.2; amb[3] = 1.0;
     glLightfv(GL_LIGHT0, GL_AMBIENT, amb);  //環境光対象
     glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
-    // //光源1
-    // glEnable(GL_LIGHT1);  //光源1有効化
-    // col[0] = 0.8; col[1] = 0.8; col[2] = 0.8; col[3] = 1.0;
-    // glLightfv(GL_LIGHT1, GL_DIFFUSE, col);  //拡散反射対象
-    // glLightfv(GL_LIGHT1, GL_SPECULAR, col);  //鏡面反射対象
-    // col[0] = 0.2; col[1] = 0.2; col[2] = 0.2; col[3] = 1.0;
-    // glLightfv(GL_LIGHT1, GL_AMBIENT, col);  //環境光対象
-    // glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0000001);  //減衰率
     //視点極座標
     eDist = 5000.0;  //距離
     eDegX =0; eDegY = 180.0;  //x軸周り角度，y軸周り角度
@@ -329,29 +313,6 @@ void initGL()
         }
     }
 
-    // initGL() 内。OpenGLコンテキスト作成後に実行
-    // latticeTexture; = cv::imread("Texture/Kousi.jpg", cv::IMREAD_COLOR);
-    // if (image.empty()) {
-    //     std::cerr << "画像を読み込めませんでした: Texture/Kousi.jpg" << std::endl;
-    // } else {
-    //     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-
-    //     glGenTextures(1, &imageTex);
-    //     glBindTexture(GL_TEXTURE_2D, imageTex);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    //     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    //     glTexImage2D(
-    //         GL_TEXTURE_2D, 0, GL_RGB,
-    //         image.cols, image.rows, 0,
-    //         GL_RGB, GL_UNSIGNED_BYTE, image.data
-    //     );
-    //     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    //     glBindTexture(GL_TEXTURE_2D, 0);
-    // }
     // initGL() 内。OpenGLコンテキスト作成後に実行
     cv::Mat image = cv::imread("Texture/Kousi.jpg", cv::IMREAD_COLOR);
     if (image.empty()) {
@@ -374,27 +335,6 @@ void initGL()
         glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-
-    // latticeTexture = cv::imread("AIT_Zoo.jpg", cv::IMREAD_COLOR);
-    // if (textureImage.empty()) {
-    //     std::cout << "画像を読み込めませんでした: AIT_Zoo.jpg" << std::endl;
-    // } else {
-    //     cv::cvtColor(textureImage, textureImage, cv::COLOR_BGR2RGB);
-    //     glBindTexture(GL_TEXTURE_2D, 0);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    //     glTexImage2D(
-    //         GL_TEXTURE_2D,
-    //         0,
-    //         GL_RGB,
-    //         textureImage.cols,
-    //         textureImage.rows,
-    //         0,
-    //         GL_RGB,
-    //         GL_UNSIGNED_BYTE,
-    //         textureImage.data
-    //     );
-    // }
 
     glGenTextures(1, &leftTex);
     glBindTexture(GL_TEXTURE_2D, leftTex);
@@ -505,6 +445,7 @@ void initView(bool isLeftEye) {
         eyeY = EyePos.y;
         eyeZ = EyePos.z;
     }
+
     //目の位置を変更
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     int viewW = static_cast<int>(winW * rDisp);
@@ -516,11 +457,6 @@ void initView(bool isLeftEye) {
     playerEye.z = eyeZ;
     }
 
-    if(isLeftEye){
-        std::cout << "Left Eye Position: (" << playerEye.x << ", " << playerEye.y << ", " << playerEye.z << ")" << std::endl;
-    }else{
-        std::cout << "Right Eye Position: (" << playerEye.x << ", " << playerEye.y << ", " << playerEye.z << ")" << std::endl;
-    }
     // 視点極座標から直交座標へ変換
     e.x = eDist * cos(eDegX * M_PI / 180.0) * sin(eDegY * M_PI / 180.0);
     e.y = eDist * sin(eDegX * M_PI / 180.0);
@@ -565,7 +501,7 @@ void initView(bool isLeftEye) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     float dd = 90.0f;      // モニターまでの垂直距離 (50cm)
-    float nearPlane = 90.0f/5.0f;
+    float nearPlane = 90.0f/10.0f;
     float farPlane = 1000.0f;
 
     // 2. ビュー行列 (LookAt) の計算
@@ -623,17 +559,15 @@ void initView(bool isLeftEye) {
 
     center = diffVec(playerEye, vn);
     if (isLeftEye) {
-        Vec_3D eye = playerEye;
         gluLookAt(
-            eye.x+eyeOffset/2,eye.y,eye.z,
-            center.x+eyeOffset, center.y, center.z,
+            playerEye.x+eyeOffset/2,playerEye.y,playerEye.z,
+            center.x+eyeOffset,center.y,center.z,
             1,0,0
         );
     } else {
-        Vec_3D eye = playerEye;
         gluLookAt(
-            eye.x-eyeOffset/2,eye.y,eye.z,
-            center.x-eyeOffset, center.y, center.z,
+            playerEye.x-eyeOffset/2,playerEye.y,playerEye.z,
+            center.x-eyeOffset,center.y,center.z,
             1,0,0
         );
     }
@@ -687,7 +621,6 @@ void dispobj(){
                 0,
                 0);
     penguin_animation();
-    model.Draw();
     glPopMatrix();
     //3Dモデル
     glPushMatrix();
@@ -720,6 +653,9 @@ void dispobj(){
         glPushMatrix();
             glMultMatrixf((GLfloat*)shadowMat);
             glTranslated(mainOjbectPos.x,mainOjbectPos.y,mainOjbectPos.z);
+            glRotated(mainObjectRotation.x, 1.0, 0.0, 0.0);
+            glRotated(mainObjectRotation.y, 0.0, 1.0, 0.0);
+            glRotated(mainObjectRotation.z, 0.0, 0.0, 1.0);
             glScaled(mainOjbectSize.x,mainOjbectSize.y,mainOjbectSize.z);
             if(mainObjectType==0){
                 glutSolidCube(1);
@@ -733,6 +669,9 @@ void dispobj(){
                     glMyCylinder(0.5,0.5,1,36);
                 glPopMatrix();
             }
+            // if(mainObjectType==3){
+            //     model.Draw();
+            // }
         glPopMatrix();
 
         glDepthMask(GL_TRUE);
@@ -743,6 +682,9 @@ void dispobj(){
     glPushMatrix();
         glTranslated(mainOjbectPos.x,mainOjbectPos.y,mainOjbectPos.z);
         glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+        glRotated(mainObjectRotation.x, 1.0, 0.0, 0.0);
+        glRotated(mainObjectRotation.y, 0.0, 1.0, 0.0);
+        glRotated(mainObjectRotation.z, 0.0, 0.0, 1.0);
         glScaled(mainOjbectSize.x,mainOjbectSize.y,mainOjbectSize.z);
         setColor(0.0, 1.0, 0.0, 1.0);
         if(mainObjectType==0){
@@ -756,6 +698,9 @@ void dispobj(){
                 glRotated(90, 1.0, 0.0, 0.0);  //こっちに向く
                 glMyCylinder(0.5,0.5,1,36);
             glPopMatrix();
+        }
+        if(mainObjectType==3){
+            model.Draw();
         }
     glPopMatrix();
 
@@ -812,7 +757,9 @@ void DrawWarpedTextures()
     glLoadIdentity();
 
     glEnable(GL_TEXTURE_2D);
-
+    glColor4f(1,1,1,1);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glDisable(GL_BLEND);   // 次項
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
@@ -913,6 +860,7 @@ void DrawWarpedTextures()
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
+    glEnable(GL_BLEND);   // 次項
 }
 
 //リサイズコールバック関数
@@ -1212,9 +1160,49 @@ void showImgui(){
     SliderDouble("sizeX", mainOjbectSize.x, -mainObjMove, mainObjSize);
     SliderDouble("sizeY", mainOjbectSize.y, -mainObjMove, mainObjSize);
     SliderDouble("sizeZ", mainOjbectSize.z, -mainObjMove, mainObjSize);
-    ImGui::InputInt("ObjtctType",&mainObjectType,1.0,3.0);
+    SliderDouble("Rotation X", mainObjectRotation.x, -180.0f, 180.0f);
+    SliderDouble("Rotation Y", mainObjectRotation.y, -180.0f, 180.0f);
+    SliderDouble("Rotation Z", mainObjectRotation.z, -180.0f, 180.0f);
+    const char* objectTypes[] = {"Cube", "Sphere", "Cylinder", "Model"};
+    ImGui::Combo("Object type", &mainObjectType, objectTypes, 4);
     ImGui::Checkbox("isNormalView", &NormalView);
     SliderDouble("EyeOffset",eyeOffset, 0.0f,1.0f);
+    ImGui::End();
+    ImGui::Begin("Model diagnostics");
+    ImGui::Text("Model status: %s", model.IsLoaded() ? "loaded" : "not loaded");
+    ImGui::Text("Model selected: %s", mainObjectType == 3 ? "yes" : "no");
+    static bool flipModelTextureU = false;
+    static bool flipModelTextureV = false;
+    const bool flipUChanged = ImGui::Checkbox("Flip texture U", &flipModelTextureU);
+    const bool flipVChanged = ImGui::Checkbox("Flip texture V", &flipModelTextureV);
+    if (flipUChanged || flipVChanged)
+    {
+        model.SetTextureCoordinateFlip(flipModelTextureU, flipModelTextureV);
+    }
+    ImGui::Text("Position: (%.3f, %.3f, %.3f)",
+                mainOjbectPos.x, mainOjbectPos.y, mainOjbectPos.z);
+    ImGui::Text("Scale: (%.3f, %.3f, %.3f)",
+                mainOjbectSize.x, mainOjbectSize.y, mainOjbectSize.z);
+    ModelBounds bounds;
+    if (model.GetLocalBounds(bounds))
+    {
+        const double sizeX = bounds.maxX - bounds.minX;
+        const double sizeY = bounds.maxY - bounds.minY;
+        const double sizeZ = bounds.maxZ - bounds.minZ;
+        ImGui::Text("Local min: (%.3f, %.3f, %.3f)",
+                    bounds.minX, bounds.minY, bounds.minZ);
+        ImGui::Text("Local max: (%.3f, %.3f, %.3f)",
+                    bounds.maxX, bounds.maxY, bounds.maxZ);
+        ImGui::Text("Local size: (%.3f, %.3f, %.3f)", sizeX, sizeY, sizeZ);
+        ImGui::Text("Scaled size: (%.3f, %.3f, %.3f)",
+                    sizeX * std::fabs(mainOjbectSize.x),
+                    sizeY * std::fabs(mainOjbectSize.y),
+                    sizeZ * std::fabs(mainOjbectSize.z));
+    }
+    else
+    {
+        ImGui::TextUnformatted("Model bounds are unavailable.");
+    }
     ImGui::End();
     //背景
     ImGui::Begin("SceneSetting");
@@ -1239,9 +1227,9 @@ void showImgui(){
     ImGui::InputDouble("pc Z", &pc.z);
     ImGui::InputDouble("Camera distance", &cameraDis);
     ImGui::InputDouble("Camera height", &cameraHeight);
-    SliderDouble("PlayerEye.X",playerEye.x, -0.0f,100.0f);
-    SliderDouble("PlayerEye.Y",playerEye.y, -0.0f,100.0f);
-    SliderDouble("PlayerEye.Z",playerEye.z, -0.0f,100.0f);
+    SliderDouble("PlayerEye.X",playerEye.x, -100.0f,100.0f);
+    SliderDouble("PlayerEye.Y",playerEye.y, 0,100.0f);
+    SliderDouble("PlayerEye.Z",playerEye.z, 0,100.0f);
     ImGui::End();
     //台形補正
     ImGui::Begin("FixDrawDistance");
