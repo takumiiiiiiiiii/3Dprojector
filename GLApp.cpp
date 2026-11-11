@@ -42,6 +42,8 @@ namespace {
         OneEuroFilter1D(double mincutoff_ = 10.0, double beta_ = 0.0, double dcutoff_ = 1.0)
             : mincutoff(mincutoff_), beta(beta_), dcutoff(dcutoff_) {}
 
+        //カットオフ周波数とサンプリング間隔 dt から、指数移動平均の係数 α (0〜1) を求める
+        //cutoffが小さいほど1に近づく
         static double alpha(double cutoff, double dt) {
             double tau = 1.0 / (2.0 * M_PI * cutoff);
             return 1.0 / (1.0 + tau / dt);
@@ -60,8 +62,9 @@ namespace {
             }
 
             // 1. 速度を推定してローパス
-            double dx = (x - x_prev) / dt;
-            double a_d = alpha(dcutoff, dt);
+            double dx = (x - x_prev) / dt;//過去と現在の差から速度を求める
+            double a_d = alpha(dcutoff, dt);//
+            //差が大きい場合は現在の値を優先
             double dx_hat = a_d * dx + (1.0 - a_d) * dx_prev;
 
             // 2. 速度に応じてカットオフ周波数を上げる(速いほど遅延を減らす)
@@ -73,7 +76,6 @@ namespace {
             dx_prev = dx_hat;
             return x_hat;
         }
-
         void reset() {
             initialized = false;
         }
@@ -97,7 +99,6 @@ namespace {
                 dt = std::chrono::duration<double>(now - lastTime).count();
             }
             lastTime = now;
-
             Vec_3D out;
             out.x = static_cast<float>(fx.filter(input.x, dt));
             out.y = static_cast<float>(fy.filter(input.y, dt));
@@ -380,7 +381,6 @@ void initGL()
     // まずはこの値から試して、体感に応じて調整してください。
     eyeFilterL.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
     eyeFilterR.setParams(/*mincutoff=*/2.0, /*beta=*/0.03);
-
     //カメラ座標設定
     camX = playerEye.x;
     camY = playerEye.y/2;
@@ -871,6 +871,7 @@ void reshape(int w, int h)
 
     // 左テクスチャ
     glBindTexture(GL_TEXTURE_2D, leftTex);
+    
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
