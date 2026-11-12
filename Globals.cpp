@@ -7,39 +7,31 @@ bool useTcp = false;
 float manualCenterX = 0.0f;
 float manualCenterY = 0.0f;
 float manualEyeDistance = 600.0f;
-//格子テクスチャ
-GLuint latticeTexture;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
 
 //現実の情報  d
-Vec_3D pa = {-22.0f/2.0f, 0, 0};  // 左下
-Vec_3D pb = {22.0f/2.0f, 0,0};  // 右下
-Vec_3D pc = {-22.0f/2.0f,21.0f, -24.0f};  // 左上
+double projectWidth = 27.3f/2.0f;
+Vec_3D pa = {-projectWidth, 0, 0};  // 左下
+Vec_3D pb = {projectWidth, 0,0};  // 右下
+Vec_3D pc = {-projectWidth,17.0f, -20.0f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
 double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
 Vec_3D playerEye = {0.0, 89, 30};//// 視点（目）
 //台形補正
-double widthfix = 0.2f;//台形補正
+double widthfix = 0.019f;//台形補正
 double topwidthfix = 0.0f;
 double topposfix = 0.0f;
-double TopXLfix = -0.539f;//右上の台形補正
-double TopXRfix = -0.128f;//右下の台形補正
+double TopXLfix = -0.573f;//右上の台形補正
+double TopXRfix = -0.007f;//右下の台形補正
 double TopYfix = 0.0f;//右上の台形補正
 double vScaleX = 0.410;
 double verticalFix = 0.005;
-bool useLatticeTexture = true;
-
-
-
 
 //ウィンドウクリア色
 Vec_3D windowClearColor = {1.0,1.0,1.0};
 Vec_3D floorColor = {0.0,0.0,0.0};
-
-
-
 
 //視点極座標
 double eDist, eDegX, eDegY;
@@ -57,6 +49,12 @@ Model model;
 Vec_3D mainOjbectSize = {10,10,10};
 Vec_3D mainOjbectPos =  {0,mainOjbectSize.y/2.0f,-22};  // 左上
 Vec_3D mainObjectRotation = {0,0,0};
+bool mainObjectAutoRotate = false;
+bool mainObjectRotateX = false;
+bool mainObjectRotateY = true;
+bool mainObjectRotateZ = false;
+double mainObjectRotationSpeed = 30.0;
+bool mainObjectRotationReverse = false;
 //メイン表示オブジェクトの形状
 int mainObjectType = 0;
 //カメラをズームするかそれとも並行移動するかのフラグ

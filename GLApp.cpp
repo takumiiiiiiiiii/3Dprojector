@@ -1,3 +1,13 @@
+#ifndef GL_GLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES
+#endif
+
+#ifdef __APPLE__
+#include <OpenGL/glext.h>
+#else
+#include <GL/glext.h>
+#endif
+
 #include "GLApp.h"
 #include "Globals.h"
 #include "Shape.h"
@@ -9,8 +19,11 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <string>
+#include <vector>
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glut.h"
 #include "imgui/backends/imgui_impl_opengl2.h"
@@ -18,6 +31,128 @@
 
 //初期設定関数
 namespace {
+    GLuint g_gridShaderProgram = 0;
+    GLint g_gridCountLocation = -1;
+    GLint g_lineWidthLocation = -1;
+    float g_gridCount = 10.0f;
+    float g_lineWidthPx = 1.5f;
+    bool g_useProceduralGrid = true;
+
+    GLuint CompileGridShader(GLenum shaderType, const char* source)
+    {
+        GLuint shader = glCreateShader(shaderType);
+        if (shader == 0)
+        {
+            std::cerr << "格子シェーダーを作成できませんでした" << std::endl;
+            return 0;
+        }
+
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+
+        GLint compiled = GL_FALSE;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (compiled == GL_TRUE)
+        {
+            return shader;
+        }
+
+        GLint logLength = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+        std::vector<GLchar> log(static_cast<size_t>(logLength > 1 ? logLength : 1));
+        GLsizei written = 0;
+        glGetShaderInfoLog(shader, static_cast<GLsizei>(log.size()), &written, log.data());
+        std::cerr << "格子シェーダーのコンパイルに失敗しました: "
+                  << log.data() << std::endl;
+        glDeleteShader(shader);
+        return 0;
+    }
+
+    GLuint CreateGridShaderProgram()
+    {
+        static const char* vertexSource =
+            "#version 120\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = ftransform();\n"
+            "    gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;\n"
+            "}\n";
+        static const char* fragmentSource =
+            "#version 120\n"
+            "uniform float uGridCount;\n"
+            "uniform float uLineWidthPx;\n"
+            "void main()\n"
+            "{\n"
+            "    vec2 uv = gl_TexCoord[0].st / gl_TexCoord[0].q;\n"
+            "    vec2 grid = uv * uGridCount;\n"
+            "    vec2 dist = abs(fract(grid + 0.5) - 0.5);\n"
+            "    vec2 fw = max(fwidth(grid), vec2(0.00001));\n"
+            "    vec2 halfWidth = 0.5 * uLineWidthPx * fw;\n"
+            "    vec2 aa = 0.5 * fw;\n"
+            "    float lineX = 1.0 - smoothstep(max(halfWidth.x - aa.x, 0.0), "
+            "halfWidth.x + aa.x, dist.x);\n"
+            "    float lineY = 1.0 - smoothstep(max(halfWidth.y - aa.y, 0.0), "
+            "halfWidth.y + aa.y, dist.y);\n"
+            "    float gridLine = max(lineX, lineY);\n"
+            "    vec4 bgColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+            "    vec4 lineColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+            "    gl_FragColor = mix(bgColor, lineColor, gridLine);\n"
+            "}\n";
+
+        GLuint vertexShader = CompileGridShader(GL_VERTEX_SHADER, vertexSource);
+        if (vertexShader == 0)
+        {
+            return 0;
+        }
+
+        GLuint fragmentShader = CompileGridShader(GL_FRAGMENT_SHADER, fragmentSource);
+        if (fragmentShader == 0)
+        {
+            glDeleteShader(vertexShader);
+            return 0;
+        }
+
+        GLuint program = glCreateProgram();
+        if (program == 0)
+        {
+            std::cerr << "格子シェーダープログラムを作成できませんでした" << std::endl;
+            glDeleteShader(vertexShader);
+            glDeleteShader(fragmentShader);
+            return 0;
+        }
+
+        glAttachShader(program, vertexShader);
+        glAttachShader(program, fragmentShader);
+        glLinkProgram(program);
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+
+        GLint linked = GL_FALSE;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (linked != GL_TRUE)
+        {
+            GLint logLength = 0;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+            std::vector<GLchar> log(static_cast<size_t>(logLength > 1 ? logLength : 1));
+            GLsizei written = 0;
+            glGetProgramInfoLog(program, static_cast<GLsizei>(log.size()), &written, log.data());
+            std::cerr << "格子シェーダープログラムのリンクに失敗しました: "
+                      << log.data() << std::endl;
+            glDeleteProgram(program);
+            return 0;
+        }
+
+        g_gridCountLocation = glGetUniformLocation(program, "uGridCount");
+        g_lineWidthLocation = glGetUniformLocation(program, "uLineWidthPx");
+        if (g_gridCountLocation < 0 || g_lineWidthLocation < 0)
+        {
+            std::cerr << "格子シェーダーのuniformを取得できませんでした" << std::endl;
+            glDeleteProgram(program);
+            return 0;
+        }
+        return program;
+    }
+
     struct EyeTcpData {
         float x = 0.0f;
         float y = 0.0f;
@@ -268,6 +403,11 @@ void initGL()
     } else {
         std::cout << "GL_VERSION: " << reinterpret_cast<const char*>(version) << std::endl;
     }
+    g_gridShaderProgram = CreateGridShaderProgram();
+    if (g_gridShaderProgram == 0) {
+        std::cerr << "格子描画シェーダーを初期化できませんでした" << std::endl;
+        exit(1);
+    }
     g_tcpThreadRunning = true;
     g_tcpThread = std::thread(TcpReceiveLoop);
 
@@ -312,29 +452,6 @@ void initGL()
             fPoint[i][j].y = 0.0;
             fPoint[i][j].z = -fWidth/2.0+j*fWidth/(TILE-1);
         }
-    }
-
-    // initGL() 内。OpenGLコンテキスト作成後に実行
-    cv::Mat image = cv::imread("Texture/Kousi.jpg", cv::IMREAD_COLOR);
-    if (image.empty()) {
-        std::cerr << "画像を読み込めませんでした: Texture/Kousi.jpg" << std::endl;
-    } else {
-        cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-        glGenTextures(1, &latticeTexture);
-        glBindTexture(GL_TEXTURE_2D, latticeTexture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGB,
-            image.cols, image.rows, 0,
-            GL_RGB, GL_UNSIGNED_BYTE, image.data
-        );
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     glGenTextures(1, &leftTex);
@@ -397,29 +514,141 @@ void initGL()
     glutSetWindow(g_renderWindowId);
 }
 
+static bool BuildProjectionWarpMatrix(bool isLeftEye, GLdouble matrix[16])
+{
+    struct WarpPoint
+    {
+        double x;
+        double y;
+    };
+
+    const double xOffset = isLeftEye ? -1.0 : 0.0;
+    const auto scaleX = [xOffset](WarpPoint point)
+    {
+        point.x = (xOffset + 1.0) - ((xOffset + 1.0) - point.x) * vScaleX;
+        return point;
+    };
+    const auto toEyeNdc = [xOffset](WarpPoint point)
+    {
+        point.x = (point.x - xOffset) * 2.0 - 1.0;
+        return point;
+    };
+
+    const WarpPoint corners[4] = {
+        toEyeNdc(scaleX({xOffset + TopYfix, -1.0 + widthfix + TopXRfix})),
+        toEyeNdc(scaleX({xOffset + 1.0, -1.0 + widthfix})),
+        toEyeNdc(scaleX({xOffset + 1.0, 1.0 - widthfix})),
+        toEyeNdc(scaleX({xOffset + TopYfix, 1.0 - widthfix + TopXLfix}))
+    };
+    const cv::Point2f source[4] = {
+        {-1.0f, -1.0f}, {1.0f, -1.0f},
+        {1.0f, 1.0f}, {-1.0f, 1.0f}
+    };
+    cv::Point2f destination[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        destination[i] = cv::Point2f(
+            static_cast<float>(corners[i].x),
+            static_cast<float>(corners[i].y));
+    }
+
+    const cv::Mat homography = cv::getPerspectiveTransform(source, destination);
+    if (!cv::checkRange(homography) ||
+        std::fabs(cv::determinant(homography)) < 1e-12)
+    {
+        static bool warningShown = false;
+        if (!warningShown)
+        {
+            std::cerr << "射影補正の四隅が無効なため、補正を適用できません" << std::endl;
+            warningShown = true;
+        }
+        return false;
+    }
+
+    const double h00 = homography.at<double>(0, 0);
+    const double h01 = homography.at<double>(0, 1);
+    const double h02 = homography.at<double>(0, 2);
+    const double h10 = homography.at<double>(1, 0);
+    const double h11 = homography.at<double>(1, 1);
+    const double h12 = homography.at<double>(1, 2);
+    const double h20 = homography.at<double>(2, 0);
+    const double h21 = homography.at<double>(2, 1);
+    const double h22 = homography.at<double>(2, 2);
+    const GLdouble warpMatrix[16] = {
+        h00, h10, 0.0, h20,
+        h01, h11, 0.0, h21,
+        0.0, 0.0, 1.0, 0.0,
+        h02, h12, 0.0, h22
+    };
+    std::copy(warpMatrix, warpMatrix + 16, matrix);
+    return true;
+}
+
+static void DrawProjectionGrid(bool isLeftEye)
+{
+    const int viewW = static_cast<int>(winW * rDisp);
+    const int viewH = static_cast<int>(winH * rDisp);
+    const int eyeWidth = viewW / 2;
+    const int eyeX = isLeftEye ? 0 : eyeWidth;
+
+    if (isLeftEye)
+    {
+        glViewport(0, 0, viewW, viewH);
+        glClearColor(windowClearColor.x, windowClearColor.y, windowClearColor.z, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    glViewport(eyeX, 0, eyeWidth, viewH);
+
+    GLdouble warpMatrix[16];
+    glMatrixMode(GL_PROJECTION);
+    if (BuildProjectionWarpMatrix(isLeftEye, warpMatrix))
+    {
+        glLoadMatrixd(warpMatrix);
+    }
+    else
+    {
+        glLoadIdentity();
+    }
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_TEXTURE_2D);
+    glUseProgram(g_gridShaderProgram);
+    glUniform1f(g_gridCountLocation, g_gridCount);
+    glUniform1f(g_lineWidthLocation, g_lineWidthPx);
+    glBegin(GL_QUADS);
+        glTexCoord2d(0.0, 0.0); glVertex2d(-1.0, -1.0);
+        glTexCoord2d(1.0, 0.0); glVertex2d(1.0, -1.0);
+        glTexCoord2d(1.0, 1.0); glVertex2d(1.0, 1.0);
+        glTexCoord2d(0.0, 1.0); glVertex2d(-1.0, 1.0);
+    glEnd();
+    glUseProgram(0);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+}
+
 //ディスプレイコールバック関数
 void display()
 {
     UpdateEyePositionFromShared();
-    initView(true);
-    // オブジェクト描画
-    dispobj();
-    //テクスチャ
-    glBindTexture(GL_TEXTURE_2D, leftTex);
-    glCopyTexSubImage2D(GL_TEXTURE_2D,0,0,0,0,0,winW/2,winH);
-    initView(false);
-    // オブジェクト描画
-    dispobj();
-    // initView(false);
-    // dispobj();
-    //テクスチャ
-    glBindTexture(GL_TEXTURE_2D, rightTex);
-
-    glCopyTexSubImage2D(GL_TEXTURE_2D,0,0,0,winW/2,0,winW/2,winH);
-
-    GLenum err = glGetError();
-    if(!NormalView){
-      DrawWarpedTextures();
+    if (!NormalView && g_useProceduralGrid)
+    {
+        DrawProjectionGrid(true);
+        DrawProjectionGrid(false);
+    }
+    else
+    {
+        initView(true);
+        dispobj();
+        initView(false);
+        dispobj();
     }
     glutSwapBuffers();
 }
@@ -546,6 +775,18 @@ void initView(bool isLeftEye) {
     left, right,
     nearPlane, farPlane
     );
+
+    if (!NormalView)
+    {
+        GLdouble warpMatrix[16];
+        if (BuildProjectionWarpMatrix(isLeftEye, warpMatrix))
+        {
+            GLdouble baseProjection[16];
+            glGetDoublev(GL_PROJECTION_MATRIX, baseProjection);
+            glLoadMatrixd(warpMatrix);
+            glMultMatrixd(baseProjection);
+        }
+    }
 
     // ビューイング変換準備
     glMatrixMode(GL_MODELVIEW);
@@ -756,10 +997,21 @@ void DrawWarpedTextures()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glEnable(GL_TEXTURE_2D);
     glColor4f(1,1,1,1);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     glDisable(GL_BLEND);   // 次項
+    if (g_useProceduralGrid)
+    {
+        glDisable(GL_TEXTURE_2D);
+        glUseProgram(g_gridShaderProgram);
+        glUniform1f(g_gridCountLocation, g_gridCount);
+        glUniform1f(g_lineWidthLocation, g_lineWidthPx);
+    }
+    else
+    {
+        glUseProgram(0);
+        glEnable(GL_TEXTURE_2D);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    }
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
@@ -827,7 +1079,10 @@ void DrawWarpedTextures()
             H.at<double>(0,2), H.at<double>(1,2), 0, H.at<double>(2,2)
         };
 
-        glBindTexture(GL_TEXTURE_2D, texture);
+        if (!g_useProceduralGrid)
+        {
+            glBindTexture(GL_TEXTURE_2D, texture);
+        }
         glMatrixMode(GL_TEXTURE);
         glLoadMatrixd(m);
         glMatrixMode(GL_MODELVIEW);
@@ -846,18 +1101,19 @@ void DrawWarpedTextures()
         glMatrixMode(GL_MODELVIEW);
     };
     
-    if (useLatticeTexture)
+    if (g_useProceduralGrid)
     {
-        drawEye(latticeTexture, -1.0f, 0.0);
-        drawEye(latticeTexture, 0.0f, 0.0);
+        drawEye(0, -1.0f, 0.0);
+        drawEye(0, 0.0f, 0.0);
     }
     else
     {
         drawEye(leftTex, -1.0f, 0.0);
         drawEye(rightTex, 0.0f, 0.0);
+        glDisable(GL_TEXTURE_2D);
     }
 
-    glDisable(GL_TEXTURE_2D);
+    glUseProgram(0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
     glEnable(GL_BLEND);   // 次項
@@ -906,6 +1162,31 @@ void reshape(int w, int h)
 //タイマーコールバック関数
 void timer(int value)
 {
+    static auto previousTime = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
+    const double deltaSeconds =
+        std::chrono::duration<double>(now - previousTime).count();
+    previousTime = now;
+
+    if (mainObjectAutoRotate)
+    {
+        const double direction = mainObjectRotationReverse ? -1.0 : 1.0;
+        const double angleDelta = mainObjectRotationSpeed * direction * deltaSeconds;
+        const auto advanceAngle = [angleDelta](double& angle)
+        {
+            angle = std::fmod(angle + angleDelta + 180.0, 360.0);
+            if (angle < 0.0)
+            {
+                angle += 360.0;
+            }
+            angle -= 180.0;
+        };
+
+        if (mainObjectRotateX) advanceAngle(mainObjectRotation.x);
+        if (mainObjectRotateY) advanceAngle(mainObjectRotation.y);
+        if (mainObjectRotateZ) advanceAngle(mainObjectRotation.z);
+    }
+
     if (g_renderWindowId != 0) {
         glutSetWindow(g_renderWindowId);
         glutPostRedisplay();
@@ -1164,6 +1445,16 @@ void showImgui(){
     SliderDouble("Rotation X", mainObjectRotation.x, -180.0f, 180.0f);
     SliderDouble("Rotation Y", mainObjectRotation.y, -180.0f, 180.0f);
     SliderDouble("Rotation Z", mainObjectRotation.z, -180.0f, 180.0f);
+    ImGui::Separator();
+    ImGui::Checkbox("Auto rotation", &mainObjectAutoRotate);
+    ImGui::SameLine();
+    ImGui::Checkbox("Reverse direction", &mainObjectRotationReverse);
+    ImGui::Checkbox("Rotate X", &mainObjectRotateX);
+    ImGui::SameLine();
+    ImGui::Checkbox("Rotate Y", &mainObjectRotateY);
+    ImGui::SameLine();
+    ImGui::Checkbox("Rotate Z", &mainObjectRotateZ);
+    SliderDouble("Rotation speed (deg/s)", mainObjectRotationSpeed, 0.0f, 360.0f);
     const char* objectTypes[] = {"Cube", "Sphere", "Cylinder", "Model"};
     ImGui::Combo("Object type", &mainObjectType, objectTypes, 4);
     ImGui::Checkbox("isNormalView", &NormalView);
@@ -1244,7 +1535,9 @@ void showImgui(){
     ImGui::InputDouble("TopYfix", &TopYfix, -2.0, 2.0);
     SliderDouble("Warp X offset", vScaleX, -2.0f, 2.0f);
     SliderDouble("verticalFix", verticalFix, -2.0f, 2.0f);
-    ImGui::Checkbox("Use lattice texture", &useLatticeTexture);
+    ImGui::Checkbox("Use procedural grid", &g_useProceduralGrid);
+    ImGui::SliderFloat("Grid count", &g_gridCount, 2.0f, 40.0f);
+    ImGui::SliderFloat("Grid line width (px)", &g_lineWidthPx, 0.5f, 5.0f);
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正

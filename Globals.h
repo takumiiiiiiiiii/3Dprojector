@@ -24,8 +24,6 @@ extern bool useTcp;      // true: TCP受信で視点位置を更新, false: TCP�
 extern float manualCenterX; // TCPなし時の代替値
 extern float manualCenterY;
 extern float manualEyeDistance;
-//格子テクスチャ
-extern GLuint latticeTexture;
 //現実の情報
 // モニター四隅
 extern Vec_3D pa;  // 左下
@@ -43,9 +41,7 @@ extern double TopXRfix;//右下の台形補正
 extern double TopYfix;//右上の台形補正
 extern double vScaleX;//ワープ四隅のX方向オフセット
 extern double verticalFix;//縦方向の補正量
-extern bool useLatticeTexture;
 extern double Xfix;
-
 
 //ウィンドウクリア色
 extern Vec_3D windowClearColor;
@@ -56,6 +52,12 @@ extern Model model;
 extern Vec_3D mainOjbectPos;  // 左上
 extern Vec_3D mainOjbectSize;
 extern Vec_3D mainObjectRotation;
+extern bool mainObjectAutoRotate;
+extern bool mainObjectRotateX;
+extern bool mainObjectRotateY;
+extern bool mainObjectRotateZ;
+extern double mainObjectRotationSpeed;
+extern bool mainObjectRotationReverse;
 //メイン表示オブジェクトの形
 extern int mainObjectType;
 //カメラの位置と向き
