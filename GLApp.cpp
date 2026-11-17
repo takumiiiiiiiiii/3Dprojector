@@ -273,6 +273,19 @@ namespace {
     float g_eyeXR = 0.0f;
     float g_eyeYR = 0.0f;
     float g_eyeZR = 0.0f;
+
+    void DrawCross()
+    {
+        glPushMatrix();
+            glScaled(0.3, 1.0, 0.3);
+            glutSolidCube(1.0);
+        glPopMatrix();
+
+        glPushMatrix();
+            glScaled(1.0, 0.3, 0.3);
+            glutSolidCube(1.0);
+        glPopMatrix();
+    }
 }
  
 // 受信専用スレッドの処理本体
@@ -910,6 +923,9 @@ void dispobj(){
                     glMyCylinder(0.5,0.5,1,36);
                 glPopMatrix();
             }
+            if(mainObjectType==4){
+                DrawCross();
+            }
             // if(mainObjectType==3){
             //     model.Draw();
             // }
@@ -942,6 +958,9 @@ void dispobj(){
         }
         if(mainObjectType==3){
             model.Draw();
+        }
+        if(mainObjectType==4){
+            DrawCross();
         }
     glPopMatrix();
 
@@ -1455,8 +1474,8 @@ void showImgui(){
     ImGui::SameLine();
     ImGui::Checkbox("Rotate Z", &mainObjectRotateZ);
     SliderDouble("Rotation speed (deg/s)", mainObjectRotationSpeed, 0.0f, 360.0f);
-    const char* objectTypes[] = {"Cube", "Sphere", "Cylinder", "Model"};
-    ImGui::Combo("Object type", &mainObjectType, objectTypes, 4);
+    const char* objectTypes[] = {"Cube", "Sphere", "Cylinder", "Model", "Cross"};
+    ImGui::Combo("Object type", &mainObjectType, objectTypes, 5);
     ImGui::Checkbox("isNormalView", &NormalView);
     SliderDouble("EyeOffset",eyeOffset, 0.0f,1.0f);
     ImGui::End();

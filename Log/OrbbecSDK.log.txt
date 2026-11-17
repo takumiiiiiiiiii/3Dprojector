@@ -1,0 +1,12 @@
+[11/17 14:51:15.244867][info][631915][MacUsbPal.cpp:213] Create PollingDeviceWatcher!
+[11/17 14:51:15.244894][info][631915][DeviceManager.cpp:25] Current found device(s): (1)
+[11/17 14:51:15.244896][info][631915][DeviceManager.cpp:34] 	- Name: Femto Mega, PID: 0x0669, SN/ID: CL2M662006B, Connection: USB2.1
+[11/17 14:51:15.244898][info][631915][DeviceManager.cpp:405] Enable net device enumeration: true
+[11/17 14:51:16.267894][info][631915][DeviceManager.cpp:25] Current device(s) list: (1)
+[11/17 14:51:16.267911][info][631915][DeviceManager.cpp:34] 	- Name: Femto Mega, PID: 0x0669, SN/ID: CL2M662006B, Connection: USB2.1
+[11/17 14:54:13.318199][info][639862][MacUsbPal.cpp:213] Create PollingDeviceWatcher!
+[11/17 14:54:13.318219][info][639862][DeviceManager.cpp:25] Current found device(s): (1)
+[11/17 14:54:13.318221][info][639862][DeviceManager.cpp:34] 	- Name: Femto Mega, PID: 0x0669, SN/ID: CL2M662006B, Connection: USB2.1
+[11/17 14:54:13.318223][info][639862][DeviceManager.cpp:405] Enable net device enumeration: true
+[11/17 14:54:14.323709][info][639862][DeviceManager.cpp:25] Current device(s) list: (1)
+[11/17 14:54:14.323738][info][639862][DeviceManager.cpp:34] 	- Name: Femto Mega, PID: 0x0669, SN/ID: CL2M662006B, Connection: USB2.1

@@ -3,7 +3,7 @@
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
 //tcpのオンオフ
-bool useTcp = true;
+bool useTcp = false;
 float manualCenterX = 0.0f;
 float manualCenterY = 0.0f;
 float manualEyeDistance = 600.0f;
