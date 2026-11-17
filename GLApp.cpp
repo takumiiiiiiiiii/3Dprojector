@@ -873,13 +873,13 @@ void dispobj(){
     
     glPopMatrix();
     //床
-    glPushMatrix();
-        glTranslated(0,floorY,-LookZ);
-        glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
-        glScaled(10,10,10);
-        setColor(floorColor.x, floorColor.y, floorColor.z, 1.0);
-        draw_floor(100,100,0,0,0);
-    glPopMatrix();
+    // glPushMatrix();
+    //     glTranslated(0,floorY,-LookZ);
+    //     glRotated(180, 0.0, 1.0, 0.0);  //こっちに向く
+    //     glScaled(10,10,10);
+    //     setColor(floorColor.x, floorColor.y, floorColor.z, 1.0);
+    //     draw_floor(100,100,0,0,0);
+    // glPopMatrix();
     //影を描画(床の上に潰したオブジェクトを暗い色で)
     //glColorの状態漏れを防ぐ
     glPushAttrib(GL_CURRENT_BIT);

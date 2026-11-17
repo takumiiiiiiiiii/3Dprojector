@@ -3,21 +3,20 @@
 // TCPサーバーのインスタンス
 TcpServer tcpServer;
 //tcpのオンオフ
-bool useTcp = false;
+bool useTcp = true;
 float manualCenterX = 0.0f;
 float manualCenterY = 0.0f;
 float manualEyeDistance = 600.0f;
 //床のグローバル変数
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
-
-//現実の情報  d
+//現実の情報
 double projectWidth = 27.3f/2.0f;
 Vec_3D pa = {-projectWidth, 0, 0};  // 左下
 Vec_3D pb = {projectWidth, 0,0};  // 右下
 Vec_3D pc = {-projectWidth,17.0f, -20.0f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
-double cameraHeight = 125.0f-50.0f; // 原点とカメラの間の高さ
+double cameraHeight = 128.5f-50.0f; // 原点とカメラの間の高さ
 Vec_3D playerEye = {0.0, 89, 30};//// 視点（目）
 //台形補正
 double widthfix = 0.019f;//台形補正
