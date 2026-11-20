@@ -22,8 +22,17 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cerrno>
+#include <fstream>
+#include <iomanip>
+#include <limits>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glut.h"
 #include "imgui/backends/imgui_impl_opengl2.h"
@@ -31,6 +40,279 @@
 
 //初期設定関数
 namespace {
+    const char* const kProjectSettingsFile = "projectorValues/projector_settings.txt";
+    const char* const kLegacyProjectSettingsFile = "projector_settings.txt";
+
+    struct ProjectSettings
+    {
+        double projectWidth;
+        Vec_3D pa;
+        Vec_3D pb;
+        Vec_3D pc;
+        double cameraDis;
+        double cameraHeight;
+        Vec_3D playerEye;
+        double widthfix;
+        double topwidthfix;
+        double topposfix;
+        double TopXLfix;
+        double TopXRfix;
+        double TopYfix;
+        double vScaleX;
+        double verticalFix;
+    };
+
+    struct ProjectPreset
+    {
+        std::string name;
+        ProjectSettings settings;
+    };
+
+    std::vector<ProjectPreset> g_projectPresets;
+    size_t g_selectedProjectPreset = 0;
+
+    ProjectSettings GetProjectSettings()
+    {
+        return {
+            projectWidth, pa, pb, pc, cameraDis, cameraHeight, playerEye,
+            widthfix, topwidthfix, topposfix, TopXLfix, TopXRfix, TopYfix,
+            vScaleX, verticalFix
+        };
+    }
+
+    void ApplyProjectSettings(const ProjectSettings& settings)
+    {
+        projectWidth = settings.projectWidth;
+        pa = settings.pa;
+        pb = settings.pb;
+        pc = settings.pc;
+        cameraDis = settings.cameraDis;
+        cameraHeight = settings.cameraHeight;
+        playerEye = settings.playerEye;
+        widthfix = settings.widthfix;
+        topwidthfix = settings.topwidthfix;
+        topposfix = settings.topposfix;
+        TopXLfix = settings.TopXLfix;
+        TopXRfix = settings.TopXRfix;
+        TopYfix = settings.TopYfix;
+        vScaleX = settings.vScaleX;
+        verticalFix = settings.verticalFix;
+    }
+
+    bool IsValidProjectSettings(const ProjectSettings& settings)
+    {
+        const double values[] = {
+            settings.projectWidth,
+            settings.pa.x, settings.pa.y, settings.pa.z,
+            settings.pb.x, settings.pb.y, settings.pb.z,
+            settings.pc.x, settings.pc.y, settings.pc.z,
+            settings.cameraDis, settings.cameraHeight,
+            settings.playerEye.x, settings.playerEye.y, settings.playerEye.z,
+            settings.widthfix, settings.topwidthfix, settings.topposfix,
+            settings.TopXLfix, settings.TopXRfix, settings.TopYfix,
+            settings.vScaleX, settings.verticalFix
+        };
+        for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i)
+        {
+            if (!std::isfinite(values[i]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool ReadProjectSettings(std::istream& input, ProjectSettings& settings)
+    {
+        return (input >> settings.projectWidth
+                >> settings.pa.x >> settings.pa.y >> settings.pa.z
+                >> settings.pb.x >> settings.pb.y >> settings.pb.z
+                >> settings.pc.x >> settings.pc.y >> settings.pc.z
+                >> settings.cameraDis >> settings.cameraHeight
+                >> settings.playerEye.x >> settings.playerEye.y >> settings.playerEye.z
+                >> settings.widthfix >> settings.topwidthfix >> settings.topposfix
+                >> settings.TopXLfix >> settings.TopXRfix >> settings.TopYfix
+                >> settings.vScaleX >> settings.verticalFix)
+            && IsValidProjectSettings(settings);
+    }
+
+    bool SaveProjectPresets();
+
+    bool EnsureProjectSettingsDirectory()
+    {
+#ifdef _WIN32
+        const int result = _mkdir("projectorValues");
+#else
+        const int result = mkdir("projectorValues", 0755);
+#endif
+        if (result != 0 && errno != EEXIST)
+        {
+            std::cerr << "設定フォルダーを作成できません: projectorValues"
+                      << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    void WriteProjectSettings(std::ostream& output, const ProjectSettings& settings)
+    {
+        output << std::setprecision(std::numeric_limits<double>::max_digits10)
+               << settings.projectWidth << '\n'
+               << settings.pa.x << ' ' << settings.pa.y << ' ' << settings.pa.z << '\n'
+               << settings.pb.x << ' ' << settings.pb.y << ' ' << settings.pb.z << '\n'
+               << settings.pc.x << ' ' << settings.pc.y << ' ' << settings.pc.z << '\n'
+               << settings.cameraDis << ' ' << settings.cameraHeight << '\n'
+               << settings.playerEye.x << ' ' << settings.playerEye.y << ' '
+               << settings.playerEye.z << '\n'
+               << settings.widthfix << ' ' << settings.topwidthfix << ' '
+               << settings.topposfix << '\n'
+               << settings.TopXLfix << ' ' << settings.TopXRfix << ' '
+               << settings.TopYfix << '\n'
+               << settings.vScaleX << ' ' << settings.verticalFix << '\n';
+    }
+
+    bool LoadProjectPresets()
+    {
+        g_projectPresets.clear();
+        g_projectPresets.push_back({"Default", GetProjectSettings()});
+        g_selectedProjectPreset = 0;
+
+        errno = 0;
+        std::ifstream input(kProjectSettingsFile);
+        bool loadedFromLegacyPath = false;
+        if (!input.is_open())
+        {
+            errno = 0;
+            input.clear();
+            input.open(kLegacyProjectSettingsFile);
+            loadedFromLegacyPath = input.is_open();
+            if (!loadedFromLegacyPath && errno != ENOENT)
+            {
+                std::cerr << "設定ファイルを開けません: "
+                          << kLegacyProjectSettingsFile << std::endl;
+            }
+            if (!loadedFromLegacyPath)
+            {
+                return false;
+            }
+        }
+
+        std::string version;
+        if (!(input >> version))
+        {
+            std::cerr << "設定ファイルが空です: "
+                      << kProjectSettingsFile << std::endl;
+            return false;
+        }
+
+        if (version == "PROJECTOR_SETTINGS_V1")
+        {
+            ProjectSettings settings;
+            if (!ReadProjectSettings(input, settings))
+            {
+                std::cerr << "設定ファイルの形式または数値が不正です: "
+                          << kProjectSettingsFile << std::endl;
+                return false;
+            }
+            g_projectPresets[0].settings = settings;
+            ApplyProjectSettings(settings);
+            if (loadedFromLegacyPath)
+            {
+                SaveProjectPresets();
+            }
+            return true;
+        }
+
+        size_t selectedPreset = 0;
+        size_t presetCount = 0;
+        if (version != "PROJECTOR_PRESETS_V1"
+            || !(input >> selectedPreset >> presetCount)
+            || presetCount == 0 || presetCount > 256
+            || selectedPreset >= presetCount)
+        {
+            std::cerr << "設定ファイルの形式またはプリセット数が不正です: "
+                      << kProjectSettingsFile << std::endl;
+            return false;
+        }
+
+        std::vector<ProjectPreset> presets;
+        for (size_t i = 0; i < presetCount; ++i)
+        {
+            ProjectPreset preset;
+            if (!std::getline(input >> std::ws, preset.name)
+                || preset.name.empty()
+                || !ReadProjectSettings(input, preset.settings))
+            {
+                std::cerr << "設定ファイルのプリセットが不正です: "
+                          << kProjectSettingsFile << std::endl;
+                return false;
+            }
+            for (size_t j = 0; j < presets.size(); ++j)
+            {
+                if (presets[j].name == preset.name)
+                {
+                    std::cerr << "設定ファイルに重複したプリセット名があります: "
+                              << preset.name << std::endl;
+                    return false;
+                }
+            }
+            presets.push_back(preset);
+        }
+
+        g_projectPresets.swap(presets);
+        g_selectedProjectPreset = selectedPreset;
+        ApplyProjectSettings(g_projectPresets[g_selectedProjectPreset].settings);
+        if (loadedFromLegacyPath)
+        {
+            SaveProjectPresets();
+        }
+        return true;
+    }
+
+    bool SaveProjectPresets()
+    {
+        if (g_projectPresets.empty()
+            || g_selectedProjectPreset >= g_projectPresets.size())
+        {
+            return false;
+        }
+
+        const ProjectSettings settings = GetProjectSettings();
+        if (!IsValidProjectSettings(settings))
+        {
+            std::cerr << "不正な値のため設定を保存できません" << std::endl;
+            return false;
+        }
+        g_projectPresets[g_selectedProjectPreset].settings = settings;
+
+        if (!EnsureProjectSettingsDirectory())
+        {
+            return false;
+        }
+        std::ofstream output(kProjectSettingsFile, std::ios::trunc);
+        if (!output.is_open())
+        {
+            std::cerr << "設定ファイルを開けません: "
+                      << kProjectSettingsFile << std::endl;
+            return false;
+        }
+
+        output << "PROJECTOR_PRESETS_V1\n"
+               << g_selectedProjectPreset << ' ' << g_projectPresets.size() << '\n';
+        for (size_t i = 0; i < g_projectPresets.size(); ++i)
+        {
+            output << g_projectPresets[i].name << '\n';
+            WriteProjectSettings(output, g_projectPresets[i].settings);
+        }
+        if (!output)
+        {
+            std::cerr << "設定ファイルへの書き込みに失敗しました: "
+                      << kProjectSettingsFile << std::endl;
+            return false;
+        }
+        return true;
+    }
+
     GLuint g_gridShaderProgram = 0;
     GLint g_gridCountLocation = -1;
     GLint g_lineWidthLocation = -1;
@@ -377,6 +659,8 @@ static void UpdateEyePositionFromShared()
 
 void initGL()
 {
+    LoadProjectPresets();
+
     if (useTcp)
     {
         if (!tcpServer.Start(50000))
@@ -1417,6 +1701,10 @@ void setrundum(int i,int j){
 }
 
 void showImgui(){
+    static bool settingsDirty = false;
+    static bool settingsSaveFailed = false;
+    static char newPresetName[64] = "New preset";
+    static std::string settingsStatus;
     auto SliderDouble = [](const char* label, double& value,
                        float minValue, float maxValue) -> bool
     {
@@ -1527,36 +1815,110 @@ void showImgui(){
     //現実世界の情報
     ImGui::Begin("RealWorldSetting");
     ImGui::Text("Monitor corners (world coordinates)");
-    ImGui::InputDouble("pa X", &pa.x);
-    ImGui::InputDouble("pa Y", &pa.y);
-    ImGui::InputDouble("pa Z", &pa.z);
-    ImGui::InputDouble("pb X", &pb.x);
-    ImGui::InputDouble("pb Y", &pb.y);
-    ImGui::InputDouble("pb Z", &pb.z);
-    ImGui::InputDouble("pc X", &pc.x);
-    ImGui::InputDouble("pc Y", &pc.y);
-    ImGui::InputDouble("pc Z", &pc.z);
-    ImGui::InputDouble("Camera distance", &cameraDis);
-    ImGui::InputDouble("Camera height", &cameraHeight);
-    SliderDouble("PlayerEye.X",playerEye.x, -100.0f,100.0f);
-    SliderDouble("PlayerEye.Y",playerEye.y, 0,100.0f);
-    SliderDouble("PlayerEye.Z",playerEye.z, 0,100.0f);
+    if (ImGui::InputDouble("Project width", &projectWidth))
+    {
+        pa.x = -projectWidth;
+        pb.x = projectWidth;
+        pc.x = -projectWidth;
+        settingsDirty = true;
+    }
+    settingsDirty |= ImGui::InputDouble("pa X", &pa.x);
+    settingsDirty |= ImGui::InputDouble("pa Y", &pa.y);
+    settingsDirty |= ImGui::InputDouble("pa Z", &pa.z);
+    settingsDirty |= ImGui::InputDouble("pb X", &pb.x);
+    settingsDirty |= ImGui::InputDouble("pb Y", &pb.y);
+    settingsDirty |= ImGui::InputDouble("pb Z", &pb.z);
+    settingsDirty |= ImGui::InputDouble("pc X", &pc.x);
+    settingsDirty |= ImGui::InputDouble("pc Y", &pc.y);
+    settingsDirty |= ImGui::InputDouble("pc Z", &pc.z);
+    settingsDirty |= ImGui::InputDouble("Camera distance", &cameraDis);
+    settingsDirty |= ImGui::InputDouble("Camera height", &cameraHeight);
+    settingsDirty |= SliderDouble("PlayerEye.X",playerEye.x, -100.0f,100.0f);
+    settingsDirty |= SliderDouble("PlayerEye.Y",playerEye.y, 0,100.0f);
+    settingsDirty |= SliderDouble("PlayerEye.Z",playerEye.z, 0,100.0f);
     ImGui::End();
     //台形補正
     ImGui::Begin("FixDrawDistance");
     ImGui::Text("windowClearColor");
-    SliderDouble("Widthfix",widthfix, -2.0f, 2.0f);
-    SliderDouble("opwidthfix",topwidthfix, -2.0f,2.0f);
-    SliderDouble("TopPosFix", topposfix, -2.0f, 2.0f);
-    SliderDouble("TopXLFix",TopXLfix, -2.0f,2.0f);
-    SliderDouble("TopXRfix", TopXRfix, -2.0f, 2.0f);
+    const char* selectedPresetName =
+        g_projectPresets[g_selectedProjectPreset].name.c_str();
+    if (ImGui::BeginCombo("Preset", selectedPresetName))
+    {
+        for (size_t i = 0; i < g_projectPresets.size(); ++i)
+        {
+            const bool isSelected = i == g_selectedProjectPreset;
+            if (ImGui::Selectable(g_projectPresets[i].name.c_str(), isSelected))
+            {
+                g_selectedProjectPreset = i;
+                ApplyProjectSettings(g_projectPresets[i].settings);
+                settingsDirty = false;
+                settingsSaveFailed = !SaveProjectPresets();
+                settingsStatus = settingsSaveFailed
+                    ? "Could not save selected preset."
+                    : "Loaded preset.";
+            }
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::InputText("New preset name", newPresetName, sizeof(newPresetName));
+    if (ImGui::Button("Save as new preset"))
+    {
+        const std::string name(newPresetName);
+        bool nameExists = name.empty();
+        for (size_t i = 0; i < g_projectPresets.size(); ++i)
+        {
+            nameExists = nameExists || g_projectPresets[i].name == name;
+        }
+        if (nameExists)
+        {
+            settingsStatus = "Enter a unique preset name.";
+            settingsSaveFailed = true;
+        }
+        else
+        {
+            g_projectPresets.push_back({name, GetProjectSettings()});
+            g_selectedProjectPreset = g_projectPresets.size() - 1;
+            settingsDirty = false;
+            settingsSaveFailed = !SaveProjectPresets();
+            settingsStatus = settingsSaveFailed
+                ? "Could not save new preset."
+                : "Saved new preset.";
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Save current preset"))
+    {
+        settingsSaveFailed = !SaveProjectPresets();
+        settingsDirty = false;
+        settingsStatus = settingsSaveFailed
+            ? "Could not save current preset."
+            : "Saved current preset.";
+    }
+    settingsDirty |= SliderDouble("Widthfix",widthfix, -2.0f, 2.0f);
+    settingsDirty |= SliderDouble("opwidthfix",topwidthfix, -2.0f,2.0f);
+    settingsDirty |= SliderDouble("TopPosFix", topposfix, -2.0f, 2.0f);
+    settingsDirty |= SliderDouble("TopXLFix",TopXLfix, -2.0f,2.0f);
+    settingsDirty |= SliderDouble("TopXRfix", TopXRfix, -2.0f, 2.0f);
     // SliderDouble("TopYfix",TopYfix,-2.0f,2.0f);
-    ImGui::InputDouble("TopYfix", &TopYfix, -2.0, 2.0);
-    SliderDouble("Warp X offset", vScaleX, -2.0f, 2.0f);
-    SliderDouble("verticalFix", verticalFix, -2.0f, 2.0f);
+    settingsDirty |= ImGui::InputDouble("TopYfix", &TopYfix, -2.0, 2.0);
+    settingsDirty |= SliderDouble("Warp X offset", vScaleX, -2.0f, 2.0f);
+    settingsDirty |= SliderDouble("verticalFix", verticalFix, -2.0f, 2.0f);
     ImGui::Checkbox("Use procedural grid", &g_useProceduralGrid);
     ImGui::SliderFloat("Grid count", &g_gridCount, 2.0f, 40.0f);
     ImGui::SliderFloat("Grid line width (px)", &g_lineWidthPx, 0.5f, 5.0f);
+
+    if (!settingsStatus.empty())
+    {
+        ImGui::TextColored(
+            settingsSaveFailed ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+                               : ImVec4(0.7f, 0.9f, 0.7f, 1.0f),
+            "%s", settingsStatus.c_str());
+    }
+    ImGui::Text("Settings file: %s", kProjectSettingsFile);
 
     // double widthfix = 0.2f;//台形補正
     // double TopXLfix = -0.8f;//右上の台形補正
@@ -1564,6 +1926,15 @@ void showImgui(){
     // double Xfix = -0.1f;
     
     ImGui::End();
+
+    if (settingsDirty && !ImGui::IsAnyItemActive())
+    {
+        settingsSaveFailed = !SaveProjectPresets();
+        settingsStatus = settingsSaveFailed
+            ? "Could not save current preset."
+            : "Saved current preset.";
+        settingsDirty = false;
+    }
 
     ImGui::Render();
     ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());

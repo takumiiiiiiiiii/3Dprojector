@@ -25,6 +25,7 @@ extern float manualCenterY;
 extern float manualEyeDistance;
 //現実の情報
 // モニター四隅
+extern double projectWidth;
 extern Vec_3D pa;  // 左下
 extern Vec_3D pb;  // 右下
 extern Vec_3D pc;  // 左上
