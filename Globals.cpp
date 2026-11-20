@@ -11,21 +11,21 @@ float manualEyeDistance = 600.0f;
 Vec_3D fPoint[TILE][TILE];
 double fWidth = 5000.0;
 //現実の情報
-double projectWidth = 27.3f/2.0f;
+double projectWidth = 22.3f/2.0f;
 Vec_3D pa = {-projectWidth, 0, 0};  // 左下
 Vec_3D pb = {projectWidth, 0,0};  // 右下
-Vec_3D pc = {-projectWidth,17.0f, -20.0f};  // 左上
+Vec_3D pc = {-projectWidth,17.0f, -16.0f};  // 左上
 double cameraDis = 110.0f; // 原点とカメラの間の距離
 double cameraHeight = 128.5f-50.0f; // 原点とカメラの間の高さ
 Vec_3D playerEye = {0.0, 89, 30};//// 視点（目）
 //台形補正
-double widthfix = 0.019f;//台形補正
-double topwidthfix = 0.0f;
+double widthfix = 0.2f;//台形補正
+double topwidthfix = 0.181f;
 double topposfix = 0.0f;
-double TopXLfix = -0.573f;//右上の台形補正
+double TopXLfix = 0.091f;//右上の台形補正
 double TopXRfix = -0.007f;//右下の台形補正
 double TopYfix = 0.0f;//右上の台形補正
-double vScaleX = 0.410;
+double vScaleX = 0.412;
 double verticalFix = 0.005;
 
 //ウィンドウクリア色
