@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <string.h>
 #ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
@@ -27,6 +28,25 @@
 //メイン関数
 int main(int argc, char *argv[])
 {
+    int glutArgc = 1;
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "--tcp") == 0)
+        {
+            useTcp = true;
+        }
+        else if (strcmp(argv[i], "--no-tcp") == 0)
+        {
+            useTcp = false;
+        }
+        else
+        {
+            argv[glutArgc++] = argv[i];
+        }
+    }
+    argc = glutArgc;
+    argv[argc] = NULL;
+
     setrundum(rows,cols);
     glutInit(&argc, argv);  //OpenGL,GLUTの初期化
     
